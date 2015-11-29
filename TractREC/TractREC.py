@@ -257,7 +257,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
          - thresh_type:                 {'upper' = > thresh_val = 0,'lower' < thresh_val = 0}
          - result:                      specification of what output you require {'all','data','mean','median','std','min','max'}
          - label_subset:                list of label values to report stats on    
-         - SKIP_ZERO_LABEL:             skip where label_val==0 {True,False} (usually the background label)
+         - SKIP_ZERO_LABEL:             skip where label_val==0 {True,False} (usually the background label)  - XXX probably does not work properly when False :-/
          - nonzero_stats:               calculate without 0s in img_fname, or with {True,False}
          - erode_vox                    number of voxels to erode mask by (simple dilation-erosion, then erosion, None for no erosion)
          - min_val:                     set min val for clipping (eg., for FA maps, set to 0)
@@ -461,6 +461,7 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
         #grab the correct label file to go with this img data file
         
         ## XXX START THESE CHECKS COULD BE REMOVED ????
+        # XXX making assumptions about how the files are named/stored that will not hold for other datasets :-/
         # by passing a list of IDs as well...?
         ID=os.path.basename(os.path.dirname(a_file)) #first get the ID, since you know how things are stored... :-/
         if VERBOSE:
@@ -503,7 +504,9 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
                     print(" thresh    : " + str(thresh_mask_fname))
                     print(" thresh_val: " + str(thresh_val))
                     print(""),
-                res=extract_stats_from_masked_image(a_file,label_file,thresh_mask_fname=thresh_mask_fname,combined_mask_output_fname=combined_mask_output_fname,thresh_val=thresh_val,thresh_type=thresh_type,label_subset=label_subset_idx,erode_vox=erode_vox,result='all',max_val=max_val,VERBOSE=VERBOSE)
+                res=extract_stats_from_masked_image(a_file,label_file,thresh_mask_fname=thresh_mask_fname,\
+                    combined_mask_output_fname=combined_mask_output_fname,thresh_val=thresh_val,thresh_type=thresh_type,\
+                    label_subset=label_subset_idx,erode_vox=erode_vox,result='all',max_val=max_val,VERBOSE=VERBOSE)
                 #now put the data into the rows:
                 df_4d.loc[idx,'ID']=int(ID)
                 df_4d.loc[idx,'metric_file']=a_file #this is probably not necessary, since it should always be the same
