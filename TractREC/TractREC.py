@@ -96,27 +96,36 @@ def get_img_bounds(img_data):
 
     return bounds
 
-def erode_mask(img_data,iterations=1,mask=None,structure=None):
+def erode_mask(img_data,iterations=1,mask=None,structure=None,LIMIT_EROSION=False,min_vox_count=10):
     """
     Binary erosion of 3D image data using scipy.ndimage package
-    1) open the mask (erode and then dilate one time, helps to remove hard edges)
-    2) erode the mask
+    If LIMIT_EROSION=True, will always return the smallest element mask with count>=min_vox_count
     INPUT:     
-            - img_data (np image array)
-            - iterations = number of iterations for erosion
-            - mask = mask img (np array) for restricting erosion
-            - structure = as defined by ndimage (should be 3,1 (no diags) if None)
+             - img_data (np image array)
+             - iterations = number of iterations for erosion
+             - mask = mask img (np array) for restricting erosion
+			- structure = as defined by ndimage (should be 3,1 (no diags) if None)
+			- LIMIT_EROSION = limits erosion to the step before the mask ended up with no voxels
+			- min_vox_count = minimum number of voxels to have in the img_data and still return this version, otherwise returns previous iteration
             
     Returns mask data in same format as input
     """
+    import numpy as np
     import scipy.ndimage as ndimage
 
     if structure is None:
-        structure=ndimage.morphology.generate_binary_structure(3,1) #neighbour, with no diagonal elements
+        structure=ndimage.morphology.generate_binary_structure(3,1) #neighbourhood
 
     #img_data=ndimage.morphology.binary_opening(img_data,iterations=1,structure=structure).astype(img_data.dtype) #binary opening   
-    img_data=ndimage.morphology.binary_erosion(img_data,iterations=iterations,mask=mask,structure=structure).astype(img_data.dtype) #now erode once with the given structure
-    
+	if not LIMIT_EROSION:
+	    img_data=ndimage.morphology.binary_erosion(img_data,iterations=iterations,mask=mask,structure=structure).astype(img_data.dtype) #now erode once with the given structure
+    else:
+		for idx in range(0,iterations):
+			img_data_temp=ndimage.morphology.binary_erosion(img_data,iterations=1,mask=mask,structure=structure).astype(img_data.dtype) #now erode once with the given structure
+			if np.sum(img_data_temp) >= min_vox_count:
+				img_data=img_data_temp
+			else:
+				break
     return img_data
 
 def generate_overlap_mask(mask1,mask2,structure=None):
@@ -136,9 +145,8 @@ def generate_overlap_mask(mask1,mask2,structure=None):
 
 def select_mask_idxs(mask_img_data,mask_subset_idx):
     """
-    Returns a reduced mask_img_data that includes only those indices in mask_id_subset_idx
-    Binarises prior to returning
-    Useful for creating boundary/exclusion masks for cortical regions that are next to the mask
+    Returns a reduced mask_img_data that includes only those indices in mask_subset_idx
+    Useful for creating boundary/exclusion masks for cortical regions that are next to the mask of interest
     """
     import numpy as np    
     #stupid and probably not fast, but it works
@@ -348,7 +356,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
             if np.sum(temp_mask) > 0: #if we know that there is still at least one mask voxel leftover... we use the erosion
                 mask[np.logical_and(mask==mask_id,single_mask==0)]=0
             else:
-                print("Label id: " +str(mask_id) + ': Not enough voxels to erode!')
+                print("Label id: " +str(mask_id) + ': Not enough voxels to erode!') #This intelligence has also been added to erode_mask, but leaving it explicit here
             single_mask=single_mask*0 #clear the single mask
         del single_mask
 
@@ -520,6 +528,7 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
     print ""
     return df_4d
     
+
 def calc_3D_flux(data,structure=None,distance_method='edt'):
     """
     Calculate the flux of 3d image data, returns flux and distance transform
