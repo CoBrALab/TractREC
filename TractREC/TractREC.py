@@ -240,7 +240,7 @@ def select_mask_idxs(mask_img_data,mask_subset_idx):
 #    elif result=='min':
 #        return results.min
 
-def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,combined_mask_output_fname=None,thresh_val=1,\
+def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,combined_mask_output_fname=None,ROI_mask_fname=None,thresh_val=1,\
                                     thresh_type='upper',result='all',label_subset=None,SKIP_ZERO_LABEL=True,nonzero_stats=True,\
                                     erode_vox=None,min_val=None,max_val=None,VERBOSE=False):
     """
@@ -255,6 +255,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
          - mask_fname:                  3D mask in same space, single or multiple labels (though not necessarily same res)
          - thresh_mask_fname:           3D mask for thresholding, can be binary or not
          - combined_mask_output_fname:  output final binary mask to this file (for confirmation of regions etc)
+         - ROI_mask_fname               3D binary mask for selecting only this region for extraction (where mask=1)
          - thresh_val:                  upper value for thresholding thresh_mask_fname, values above/below this are set to 0
          - thresh_type:                 {'upper' = > thresh_val = 0,'lower' < thresh_val = 0}
          - result:                      specification of what output you require {'all','data','mean','median','std','min','max'}
@@ -317,6 +318,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
     maff=nb.load(mask_fname).affine       
     
     # see if we need to resample the mask to the img
+    # XXX this can be improved by adding a flag to tell what space we should be resampling to, and what kind of resampling we should do (i.e., if going higher then should we use sinc or something?)
     if not np.array_equal(np.diagonal(maff),np.diagonal(daff)):
         mask=resample_img(mask_fname,daff,np.shape(d),interpolation='nearest').get_data()
     else:
@@ -337,6 +339,14 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
         else:
             print("set a valid thresh_type: 'upper' or 'lower'")
             return
+
+    if ROI_mask_fname is not None:
+        ROI_maff=nb.load(ROI_mask_fname).affine 
+        if not np.array_equal(np.diagonal(ROI_maff),np.diagonal(daff)):
+            ROI_mask=resample_img(ROI_mask_fname,daff,np.shape(d),interpolation='nearest').get_data()
+        else:
+            ROI_mask=nb.load(ROI_mask_fname).get_data()
+        mask[ROI_mask<1]=0 #remove from the final mask
         
     if label_subset is None:
         mask_ids=np.unique(mask)
@@ -408,7 +418,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
         return results.maxx
 
 def extract_quantitative_metric(metric_files,label_files,label_df=None,label_subset_idx=None,label_tag="label_",metric='mean',\
-                                thresh_mask_files=None,thresh_val=0.35,max_val=1,thresh_type='upper',erode_vox=None,zfill_num=3,\
+                                thresh_mask_files=None,ROI_mask_files=None,thresh_val=0.35,max_val=1,thresh_type='upper',erode_vox=None,zfill_num=3,\
                                 DEBUG_DIR=None,VERBOSE=False):
     """
     Extracts voxel-wise data for given set of matched label_files and metric files. Returns pandas dataframe of results
@@ -421,6 +431,7 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
         - label_tag         - string that will precede the label description in the column header
         - metric            - metric to extract {'mean','median','vox_count'}
         - thresh_mask_files - list of files for additional thresholding (again, same restrictions as label_files)
+        - ROI_mask_files    - binary mask file(s) denoting ROI for extraction =1        
         - thresh_val        - value for threshoding
         - max_val           - maximum value for the metric (i.e., if FA, set to 1)
         - thresh_type       - {'upper' = > thresh_val = 0,'lower' < thresh_val = 0}
@@ -435,7 +446,7 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
     import numpy as np
     import pandas as pd    
     
-    cols=['ID','metric_file','label_file','thresh_file','thresh_val'] #used to link it to the other measures and to confirm that the masks were used in the correct order so that the values are correct  
+    cols=['ID','metric_file','label_file','thresh_file','thresh_val','thresh_type','ROI_mask'] #used to link it to the other measures and to confirm that the masks were used in the correct order so that the values are correct  
     
     if label_subset_idx is None: #you didn't define your label indices, so we go get them for you from the 1st label file
         print("label_subset_idx was not defined")
@@ -477,19 +488,37 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
             print "OH SHIT, too many label files. This should not happen!"
             
         elif len(label_file)==0:
-            print "OH SHIT, no matching label file"
+            print "OH SHIT, no matching label file for: " + ID
             DATA_EXISTS=False
         
         if thresh_mask_files is not None:
-            thresh_mask_fname=[s for s in thresh_mask_files if ID in s] #make sure our label file is in the list that was passed
-            if len(thresh_mask_fname)>1:
-                print "OH SHIT, too many threshold mask files. This should not happen!"
-                
-            elif len(thresh_mask_fname)==0:
-                print "OH SHIT, no matching threshold mask file"
-                DATA_EXISTS=False
+            if len(thresh_mask_files)==1: #if we only provide one mask, we use this for everyone
+                thresh_mask_fname=thresh_mask_files
+            else:
+                thresh_mask_fname=[s for s in thresh_mask_files if ID in s] #make sure our label file is in the list that was passed
+                if len(thresh_mask_fname)>1:
+                    print "OH SHIT, too many threshold mask files. This should not happen!"
+                    
+                elif len(thresh_mask_fname)==0:
+                    print "OH SHIT, no matching threshold mask file for: " + ID
+                    DATA_EXISTS=False
         else:
             thresh_mask_fname=None
+        
+        if ROI_mask_files is not None:
+            if len(ROI_mask_files)==1: #if we only provide one mask, we use this for everyone
+                ROI_mask_fname=ROI_mask_files
+            else:
+                ROI_mask_fname=[s for s in ROI_mask_files if ID in s] #make sure our label file is in the list that was passed
+                if len(ROI_mask_fname)>1:
+                    print "OH SHIT, too many threshold mask files. This should not happen!"
+                    
+                elif len(ROI_mask_fname)==0:
+                    print "OH SHIT, no matching ROI mask file for: " + ID
+                    DATA_EXISTS=False
+        else:
+            ROI_mask_fname=None
+        
         #
         ## STOP THESE CHECKS COULD BE REMOVED
         
@@ -501,7 +530,12 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
                     combined_mask_output_fname=None
                 
                 label_file=label_file[0]
-                thresh_mask_fname=thresh_mask_fname[0]
+                
+                if thresh_mask_fname is not None: 
+                    thresh_mask_fname=thresh_mask_fname[0]
+                if ROI_mask_fname is not None:
+                    ROI_mask_fname=ROI_mask_fname[0]
+                
                 if VERBOSE:
                     print(" metric    : " + a_file)
                     print(" label     : " + label_file)
@@ -509,28 +543,29 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
                     print(" thresh_val: " + str(thresh_val))
                     print(""),
                 res=extract_stats_from_masked_image(a_file,label_file,thresh_mask_fname=thresh_mask_fname,\
-                    combined_mask_output_fname=combined_mask_output_fname,thresh_val=thresh_val,thresh_type=thresh_type,\
+                    combined_mask_output_fname=combined_mask_output_fname,ROI_mask_fname=ROI_mask_fname,thresh_val=thresh_val,thresh_type=thresh_type,\
                     label_subset=label_subset_idx,erode_vox=erode_vox,result='all',max_val=max_val,VERBOSE=VERBOSE)
                 #now put the data into the rows:
                 df_4d.loc[idx,'ID']=int(ID)
-                df_4d.loc[idx,'metric_file']=a_file #this is probably not necessary, since it should always be the same
-                df_4d.loc[idx,'label_file']=label_file #this is overkill, since it should always be the same
-                df_4d.loc[idx,'thresh_file']=thresh_mask_fname #this is overkill, since it should always be the same
+                df_4d.loc[idx,'metric_file']=a_file 
+                df_4d.loc[idx,'label_file']=label_file 
+                df_4d.loc[idx,'thresh_file']=thresh_mask_fname 
                 df_4d.loc[idx,'thresh_val']=thresh_val #this is overkill, since it should always be the same
-                
+                df_4d.loc[idx,'thresh_type']=thresh_type #this is overkill, since it should always be the same
+                df_4d.loc[idx,'ROI_mask']=ROI_mask_fname
                 if metric is 'mean':
-                    df_4d.loc[idx,5::]=res.mean
+                    df_4d.loc[idx,7::]=res.mean
                 elif metric is 'median':
-                    df_4d.loc[idx,5::]=res.median
+                    df_4d.loc[idx,7::]=res.median
                 elif metric is 'vox_count':
-                    df_4d.loc[idx,5::]=[len(a_idx) for a_idx in res.data] #gives num vox
+                    df_4d.loc[idx,7::]=[len(a_idx) for a_idx in res.data] #gives num vox
                 else:
                     print("Incorrect metric selected.")
                     return
             except:
                 print("")
                 print("##=====================================================================##")
-                print("Darn! There is something wrong with this ID!")
+                print("Darn! There is something wrong with: "+ID)
                 print("##=====================================================================##")
     print ""
     return df_4d
