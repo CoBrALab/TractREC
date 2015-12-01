@@ -240,7 +240,9 @@ def select_mask_idxs(mask_img_data,mask_subset_idx):
 #    elif result=='min':
 #        return results.min
 
-def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,combined_mask_output_fname=None,thresh_val=1,thresh_type='upper',result='all',label_subset=None,SKIP_ZERO_LABEL=True,nonzero_stats=True,erode_vox=None,min_val=None,max_val=None,VERBOSE=False):
+def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,combined_mask_output_fname=None,thresh_val=1,\
+                                    thresh_type='upper',result='all',label_subset=None,SKIP_ZERO_LABEL=True,nonzero_stats=True,\
+                                    erode_vox=None,min_val=None,max_val=None,VERBOSE=False):
     """
     XXX - THIS SHOULD BE CHECKED TO MAKE SURE THAT IT WORKS WITH ALL INPUTS - ASSUMPTIONS ABOUT TRANSFORMS WERE MADE XXX
     Extract values from img at mask location
@@ -405,7 +407,9 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
     elif result=='max':
         return results.maxx
 
-def extract_quantitative_metric(metric_files,label_files,label_df=None,label_subset_idx=None,label_tag="label_",metric='mean',thresh_mask_files=None,thresh_val=0.35,max_val=1,thresh_type='upper',erode_vox=None,zfill_num=3,DEBUG_DIR=None,VERBOSE=False):
+def extract_quantitative_metric(metric_files,label_files,label_df=None,label_subset_idx=None,label_tag="label_",metric='mean',\
+                                thresh_mask_files=None,thresh_val=0.35,max_val=1,thresh_type='upper',erode_vox=None,zfill_num=3,\
+                                DEBUG_DIR=None,VERBOSE=False):
     """
     Extracts voxel-wise data for given set of matched label_files and metric files. Returns pandas dataframe of results
     CAREFUL: IDs are currently defined as the last directory of the input metric_files element
