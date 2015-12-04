@@ -4,14 +4,25 @@ Created on Thu Oct 22 10:07:32 2015
 
 @author: Christopher J Steele (except for one that I took from stackoverflow ;-))
 """
+    
 
-def niiLoad(full_fileName, RETURN_RES=False):
+def imgLoad(full_fileName, RETURN_RES=False):
+    """
+    Load img file with nibabel
+    returns data, affine, dimension resolution (if RETURN_RES=True)
+    """
     import nibabel as nb
     img=nb.load(full_fileName)
     if RETURN_RES:
         return img.get_data(), img.affine, img.header.get_zooms()
     else:
         return img.get_data(), img.affine
+
+#for backwards compatability
+niiLoad=imgLoad
+
+#XXX add mnc saving
+#def imgSave(full_fileName, data, aff, data_type='float32', CLOBBER=True):
 
 def niiSave(full_fileName, data, aff, data_type='float32', CLOBBER=True):
     """
@@ -196,7 +207,6 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
     """
     
     from nilearn.image import resample_img
-    import nibabel as nb
     import numpy as np
     
     class return_results(object):
@@ -230,13 +240,9 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
     d_std=[]
     d_min=[]
     d_max=[]
-
-    daff=nb.load(img_fname).affine
-    d=nb.load(img_fname).get_data()
-    #print(daff)
-
-    maff=nb.load(mask_fname).affine    
-    mask=nb.load(mask_fname).get_data()
+    
+    d,daff=imgLoad(img_fname)
+    mask,maff=imgLoad(mask_fname)
     
     #dumb way to do this,but too much coffee today
     if USE_MASK_RES:   
@@ -259,11 +265,12 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
     # if we have passed an additional thresholding mask, move to the same space,
     # thresh at the given thresh_val, and remove from our mask
     if thresh_mask_fname is not None:
-        thresh_maff=nb.load(thresh_mask_fname).affine 
+        thresh_mask,thresh_maff=imgLoad(thresh_mask_fname)
         if not np.array_equal(np.diagonal(thresh_maff),np.diagonal(chosen_aff)):
             thresh_mask=resample_img(thresh_mask_fname,chosen_aff,chosen_shape,interpolation='nearest').get_data()
         else:
-            thresh_mask=nb.load(thresh_mask_fname).get_data()
+            pass #we already have the correct data
+
         if thresh_type is 'upper':
             mask[thresh_mask>thresh_val]=0 #remove from the mask
         elif thresh_type is 'lower':
@@ -273,11 +280,12 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
             return
 
     if ROI_mask_fname is not None:
-        ROI_maff=nb.load(ROI_mask_fname).affine 
+        ROI_mask,ROI_maff=imgLoad(ROI_mask_fname)
         if not np.array_equal(np.diagonal(ROI_maff),np.diagonal(chosen_aff)):
             ROI_mask=resample_img(ROI_mask_fname,chosen_aff,chosen_shape,interpolation='nearest').get_data()
-        else:
-            ROI_mask=nb.load(ROI_mask_fname).get_data()
+        else: #we already have the correct data
+            pass
+
         mask[ROI_mask<1]=0 #remove from the final mask
         
     if label_subset is None:
@@ -384,8 +392,8 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
         print("label_subset_idx was not defined")
         print("Label numbers were extracted from the first label file")
         print("label_id = 0 was removed")
-        import nibabel as nb
-        label_subset_idx=np.unique(nb.load(label_files[0]).get_data())
+
+        label_subset_idx=np.unique(imgLoad(label_files[0])[0])
         label_subset_idx=label_subset_idx[label_subset_idx!=0]
     
     if label_df is None: #WHAT? you didn't provide a label to idx matching dataframe??
