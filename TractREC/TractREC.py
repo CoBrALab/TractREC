@@ -5,10 +5,13 @@ Created on Thu Oct 22 10:07:32 2015
 @author: Christopher J Steele (except for one that I took from stackoverflow ;-))
 """
 
-def niiLoad(full_fileName):
+def niiLoad(full_fileName, RETURN_RES=False):
     import nibabel as nb
     img=nb.load(full_fileName)
-    return img.get_data(), img.affine
+    if RETURN_RES:
+        return img.get_data(), img.affine, img.header.get_zooms()
+    else:
+        return img.get_data(), img.affine
 
 def niiSave(full_fileName, data, aff, data_type='float32', CLOBBER=True):
     """
@@ -155,94 +158,9 @@ def select_mask_idxs(mask_img_data,mask_subset_idx):
         reduced_mask_data[mask_img_data==idx]=idx
     return reduced_mask_data
 
-#def extract_stats_from_masked_image(img,mask,result='all',nonzero_stats=True,max_val=None):
-#    """
-#    XXX - THIS SHOULD BE CHECKED TO MAKE SURE THAT IT WORKS WITH ALL INPUTS - ASSUMPTIONS ABOUT TRANSFORMS WERE MADE XXX
-#    Extract values from img at mask location
-#    Images do not need to be the same resolution, though this is highly preferred
-#        - resampling taken care of with nilearn tools
-#        - set nonzero_stats to false to include 0s in the calculations
-#        - clipped to >max_val 
-#       Input:
-#         - img:             3D image
-#         - mask:            3D mask in same space (though not necessarily same res)
-#         - result:          specification of what output you require {'all','data','mean','median','std','min','max'}
-#         - nonzero_stats:   calculate without 0s, or with {True,False}
-#         - max_val:         set max val for clipping (eg., for FA maps, set to 1.0)
-#         
-#       Output: (in data structure)
-#         - data, mean, median, std, minn, maxx
-#         - or all in data structure if result='all'
-#    
-#       e.g.,
-#         - res=extract_stats_from_masked_image(img,mask)
-#    """
-#    
-#    from nilearn.image import resample_img
-#    import nibabel as nb
-#    import numpy as np
-#    
-#    class return_results(object):
-#        #output results as an object with these values
-#        def __init__(self,data,mean,median,std,minn,maxx):
-#            self.data=data
-#            self.mean=mean
-#            self.median=median
-#            self.std= std
-#            self.minn=minn
-#            self.maxx=maxx
-#        
-#        def __str__(self):
-#            # defines what is returned when print is called on this class
-#            template_txt="""
-#            len(data): {data_len}
-#            mean     : {mean}
-#            median   : {median}
-#            std      : {std}
-#            max      : {maxx}
-#            min      : {minn}
-#            """
-#            return template_txt.format(data_len=len(self.data),mean=self.mean, median=self.median, std=self.std, maxx=self.maxx, minn=self.minn)
-#        
-#    daff=nb.load(img).affine
-#    d=nb.load(img).get_data()
-#    #print(daff)
-#
-#    maff=nb.load(mask).affine
-#    #print(maff)
-#    
-#    # see if we need to resample the mask to the img
-#    if not np.array_equal(np.diagonal(maff),np.diagonal(daff)):
-#        mask=resample_img(mask,daff,np.shape(d),interpolation='nearest').get_data()
-#    else:
-#        mask=nb.load(mask).get_data()
-#    
-#    dx=np.ma.masked_array(d,np.ma.make_mask(np.logical_not(mask))).compressed()
-#    if nonzero_stats:
-#        dx=dx[dx>0]
-#    if not max_val is None:
-#        dx[dx>max_val]=max_val
-#    
-#    results=return_results(dx,np.mean(dx),np.median(dx),np.std(dx),np.min(dx),np.max(dx))
-#    
-#    if result=='all':
-#        return results
-#    elif result=='data':
-#        return results.data
-#    elif result=='mean':
-#        return results.mean
-#    elif result=='median':
-#        return results.median
-#    elif result=='std':
-#        return results.std
-#    elif result=='max':
-#        return results.max
-#    elif result=='min':
-#        return results.min
-
 def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,combined_mask_output_fname=None,ROI_mask_fname=None,thresh_val=1,\
                                     thresh_type='upper',result='all',label_subset=None,SKIP_ZERO_LABEL=True,nonzero_stats=True,\
-                                    erode_vox=None,min_val=None,max_val=None,VERBOSE=False):
+                                    erode_vox=None,min_val=None,max_val=None,VERBOSE=False,USE_MASK_RES=False):
     """
     XXX - THIS SHOULD BE CHECKED TO MAKE SURE THAT IT WORKS WITH ALL INPUTS - ASSUMPTIONS ABOUT TRANSFORMS WERE MADE XXX
     Extract values from img at mask location
@@ -263,8 +181,10 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
          - SKIP_ZERO_LABEL:             skip where label_val==0 {True,False} (usually the background label)  - XXX probably does not work properly when False :-/
          - nonzero_stats:               calculate without 0s in img_fname, or with {True,False}
          - erode_vox                    number of voxels to erode mask by (simple dilation-erosion, then erosion, None for no erosion)
-         - min_val:                     set min val for clipping (eg., for FA maps, set to 0)
-         - max_val:                     set max val for clipping (eg., for FA maps, set to 1.0)
+         - min_val:                     set min val for clipping of metric (eg., for FA maps, set to 0)
+         - max_val:                     set max val for clipping of metric (eg., for FA maps, set to 1.0)
+         - VERBOSE                      verbose reporting or not (default: False)
+         - USE_MASK_RES                 otherwise uses the res of the img_fname (default: False)
          
        Output: (in data structure composed of numpy array(s))
          - data, mean, median, std, minn, maxx
@@ -310,26 +230,38 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
     d_std=[]
     d_min=[]
     d_max=[]
-    
+
     daff=nb.load(img_fname).affine
     d=nb.load(img_fname).get_data()
     #print(daff)
 
-    maff=nb.load(mask_fname).affine       
+    maff=nb.load(mask_fname).affine    
+    mask=nb.load(mask_fname).get_data()
     
-    # see if we need to resample the mask to the img
-    # XXX this can be improved by adding a flag to tell what space we should be resampling to, and what kind of resampling we should do (i.e., if going higher then should we use sinc or something?)
-    if not np.array_equal(np.diagonal(maff),np.diagonal(daff)):
-        mask=resample_img(mask_fname,daff,np.shape(d),interpolation='nearest').get_data()
-    else:
-        mask=nb.load(mask_fname).get_data()
+    #dumb way to do this,but too much coffee today
+    if USE_MASK_RES:   
+        # see if we need to resample the img to the mask
+        if not np.array_equal(np.diagonal(maff),np.diagonal(daff)):
+            d=resample_img(img_fname,maff,np.shape(mask),interpolation='nearest').get_data()
+            chosen_aff=maff
+            chosen_shape=np.shape(mask)
+        else:
+            pass #they are the same and we already loaded the data
+    else:     #default way, use img_fname resolution           
+        # see if we need to resample the mask to the img
+        if not np.array_equal(np.diagonal(maff),np.diagonal(daff)):
+            mask=resample_img(mask_fname,daff,np.shape(d),interpolation='nearest').get_data()
+            chosen_aff=daff
+            chosen_shape=np.shape(d)
+        else: #they are the same and we already loaded the data
+            pass
     
     # if we have passed an additional thresholding mask, move to the same space,
     # thresh at the given thresh_val, and remove from our mask
     if thresh_mask_fname is not None:
         thresh_maff=nb.load(thresh_mask_fname).affine 
-        if not np.array_equal(np.diagonal(thresh_maff),np.diagonal(daff)):
-            thresh_mask=resample_img(thresh_mask_fname,daff,np.shape(d),interpolation='nearest').get_data()
+        if not np.array_equal(np.diagonal(thresh_maff),np.diagonal(chosen_aff)):
+            thresh_mask=resample_img(thresh_mask_fname,chosen_aff,chosen_shape,interpolation='nearest').get_data()
         else:
             thresh_mask=nb.load(thresh_mask_fname).get_data()
         if thresh_type is 'upper':
@@ -342,8 +274,8 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
 
     if ROI_mask_fname is not None:
         ROI_maff=nb.load(ROI_mask_fname).affine 
-        if not np.array_equal(np.diagonal(ROI_maff),np.diagonal(daff)):
-            ROI_mask=resample_img(ROI_mask_fname,daff,np.shape(d),interpolation='nearest').get_data()
+        if not np.array_equal(np.diagonal(ROI_maff),np.diagonal(chosen_aff)):
+            ROI_mask=resample_img(ROI_mask_fname,chosen_aff,chosen_shape,interpolation='nearest').get_data()
         else:
             ROI_mask=nb.load(ROI_mask_fname).get_data()
         mask[ROI_mask<1]=0 #remove from the final mask
@@ -373,7 +305,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
         del single_mask
 
     if combined_mask_output_fname is not None:
-        niiSave(combined_mask_output_fname,mask,daff,data_type='uint16')
+        niiSave(combined_mask_output_fname,mask,chosen_aff,data_type='uint16')
 
     if VERBOSE:
         print("Mask index extraction: "),
@@ -433,7 +365,7 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
         - thresh_mask_files - list of files for additional thresholding (again, same restrictions as label_files)
         - ROI_mask_files    - binary mask file(s) denoting ROI for extraction =1        
         - thresh_val        - value for threshoding
-        - max_val           - maximum value for the metric (i.e., if FA, set to 1)
+        - max_val           - maximum value for clipping the metric (i.e., if FA, set to 1, 3 for MK)
         - thresh_type       - {'upper' = > thresh_val = 0,'lower' < thresh_val = 0}
         - erode_vox         - number of voxels to erode mask by (simple binary erosion, None for no erosion)
         - zfill_num         - number of zeros to fill to make label index numbers line up properly
