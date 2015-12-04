@@ -18,7 +18,7 @@ def imgLoad(full_fileName, RETURN_RES=False):
     else:
         return img.get_data(), img.affine
 
-#for backwards compatability
+#for backwards compatability with previous scripts
 niiLoad=imgLoad
 
 #XXX add mnc saving
@@ -253,12 +253,13 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
             chosen_shape=np.shape(mask)
         else:
             pass #they are the same and we already loaded the data
-    else:     #default way, use img_fname resolution           
+    else:     #default way, use img_fname resolution 
+        chosen_aff=daff
+        chosen_shape=np.shape(d)          
         # see if we need to resample the mask to the img
         if not np.array_equal(np.diagonal(maff),np.diagonal(daff)):
             mask=resample_img(mask_fname,daff,np.shape(d),interpolation='nearest').get_data()
-            chosen_aff=daff
-            chosen_shape=np.shape(d)
+
         else: #they are the same and we already loaded the data
             pass
     
@@ -359,7 +360,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
 
 def extract_quantitative_metric(metric_files,label_files,label_df=None,label_subset_idx=None,label_tag="label_",metric='mean',\
                                 thresh_mask_files=None,ROI_mask_files=None,thresh_val=0.35,max_val=1,thresh_type='upper',erode_vox=None,zfill_num=3,\
-                                DEBUG_DIR=None,VERBOSE=False):
+                                DEBUG_DIR=None,VERBOSE=False,USE_MASK_RES=False):
     """
     Extracts voxel-wise data for given set of matched label_files and metric files. Returns pandas dataframe of results
     CAREFUL: IDs are currently defined as the last directory of the input metric_files element
@@ -378,6 +379,9 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
         - erode_vox         - number of voxels to erode mask by (simple binary erosion, None for no erosion)
         - zfill_num         - number of zeros to fill to make label index numbers line up properly
         - DEBUG_DIR         - directory to dump new thresholded and interpolated label files to
+        - VERBOSE           - verbose reporting or not (default: False)
+        - USE_MASK_RES      - otherwise uses the res of the img_fname (default: False)
+        
     OUTPUT:
         - df_4d             - pandas dataframe of results
     """
@@ -484,7 +488,7 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
                     print(""),
                 res=extract_stats_from_masked_image(a_file,label_file,thresh_mask_fname=thresh_mask_fname,\
                     combined_mask_output_fname=combined_mask_output_fname,ROI_mask_fname=ROI_mask_fname,thresh_val=thresh_val,thresh_type=thresh_type,\
-                    label_subset=label_subset_idx,erode_vox=erode_vox,result='all',max_val=max_val,VERBOSE=VERBOSE)
+                    label_subset=label_subset_idx,erode_vox=erode_vox,result='all',max_val=max_val,VERBOSE=VERBOSE,USE_MASK_RES=USE_MASK_RES)
                 #now put the data into the rows:
                 df_4d.loc[idx,'ID']=int(ID)
                 df_4d.loc[idx,'metric_file']=a_file 
