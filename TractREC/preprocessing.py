@@ -17,7 +17,7 @@ def sanitize_bvals(bvals,target_bvals=[0,1000,2000,3000]):
         bvals[idx]=min(target_bvals, key=lambda x:abs(x-bval))
     return bvals
     
-def select_and_write_data_bvals_bvecs(data_fname,bvals_file,bvecs_file,bval_max_cutoff=2500,CLOBBER=False):    
+def select_and_write_data_bvals_bvecs(data_fname,bvals_file,bvecs_file,out_dir=None,bval_max_cutoff=2500,CLOBBER=False):    
     """
     Create subset of data with the bvals that you are interested in (uses fslselectvols instead of loading into memory)
     Selects only the data and bvals/bvecs that are below the bval_max_cutoff, writes to files in input dir
@@ -26,6 +26,10 @@ def select_and_write_data_bvals_bvecs(data_fname,bvals_file,bvecs_file,bval_max_
     import os
     import numpy as np
     import subprocess
+
+    if out_dir is None:
+        out_dir=os.path.dirname(data_fname)
+    create_dir(out_dir)
     
     bvals=np.loadtxt(bvals_file)
     bvecs=np.loadtxt(bvecs_file)
@@ -33,9 +37,14 @@ def select_and_write_data_bvals_bvecs(data_fname,bvals_file,bvecs_file,bval_max_
     #alterative would be to load this into memory, but difficult when working with larger datasets like HCP so we use fsl here
     #XXX add option for doing this within python (would be faster!)    
     vol_list=str([i for i,v in enumerate(bvals) if v < bval_max_cutoff]).strip('[]').replace(" ","") #strip the []s and remove spaces to format as expected
-    out_fname=data_fname.split(".nii")[0] + "_bvals_under" +str(bval_max_cutoff) + ".nii.gz"
-    bvals_fname=bvals_file.split(".")[0]+ "_bvals_under"+str(bval_max_cutoff)
-    bvecs_fname=bvecs_file.split(".")[0]+ "_bvals_under"+str(bval_max_cutoff)
+    
+    #rename and point to the correct directory
+    out_fname=os.path.basename(data_fname).split(".nii")[0] + "_bvals_under" +str(bval_max_cutoff) + ".nii.gz"
+    bvals_fname=os.path.basename(bvals_file).split(".")[0]+ "_bvals_under"+str(bval_max_cutoff)
+    bvecs_fname=os.path.basename(bvecs_file).split(".")[0]+ "_bvals_under"+str(bval_max_cutoff)
+    out_fname=os.path.join(out_dir,out_fname)
+    bvals_fname=os.path.join(out_dir,bvals_fname)
+    bvecs_fname=os.path.join(out_dir,bvecs_fname)
     
     cmd_input=['fslselectvols','-i',data_fname,'-o',out_fname,'--vols='+vol_list]
     print(cmd_input)
