@@ -1128,12 +1128,3 @@ def run_diffusion_kurtosis_estimator(sub_root_dir, ID, data_fname, bvals_file, b
     print(os.path.join(sub_root_dir,ID))
     #this job requires over 18GB for the HCP data
     submit_via_qsub(code=code,description="Diffusion kurtosis estimation",name=jname,outdir=out_dir,nthreads=6,mem=4.0,SUBMIT=SUBMIT)
-
-
-
-
-
-
-
-
-
