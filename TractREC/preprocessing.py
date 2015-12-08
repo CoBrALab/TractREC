@@ -177,7 +177,7 @@ def create_python_exec(out_dir,code=["#!/usr/bin/python",""],name="CJS_py"):
     os.chmod(subFullName,st.st_mode | stat.S_IEXEC) #make executable
     return subFullName
     
-def run_diffusion_kurtosis_estimatory_dipy(data_fnames,bvals_fnames,bvecs_fnames,out_root_dir,IDs=None,TractREC_path='/home/cic/stechr/Documents/code/TractREC/TractREC',bval_max_cutoff=3200,slices='all',NLMEANS_DENOISE=False,IN_MEM=True):
+def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,out_root_dir,IDs=None,TractREC_path='/home/cic/stechr/Documents/code/TractREC/TractREC',bval_max_cutoff=3200,slices='all',NLMEANS_DENOISE=False,IN_MEM=True):
     """
     Pass matched lists of data filenames, bval filenames, and bvec filenames, along with a root directory for the output
     INPUT:
