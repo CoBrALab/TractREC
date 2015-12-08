@@ -25,8 +25,9 @@ def select_and_write_data_bvals_bvecs(data_fname,bvals_file,bvecs_file,out_dir=N
     Returns output_filename, bvals, bvecs and selects vols in memory when IN_MEM=True
     """
     import os
-    import numpy as np
     import subprocess
+    import numpy as np
+    import nibabel as nb    
 
     if out_dir is None:
         out_dir=os.path.dirname(data_fname)
@@ -36,7 +37,7 @@ def select_and_write_data_bvals_bvecs(data_fname,bvals_file,bvecs_file,out_dir=N
     bvecs=np.loadtxt(bvecs_file)
     
     vol_list=[i for i,v in enumerate(bvals) if v < bval_max_cutoff]
-    
+
     #rename and point to the correct directory
     out_fname=os.path.basename(data_fname).split(".nii")[0] + "_bvals_under" +str(bval_max_cutoff) + ".nii.gz"
     bvals_fname=os.path.basename(bvals_file).split(".")[0]+ "_bvals_under"+str(bval_max_cutoff)
@@ -46,26 +47,32 @@ def select_and_write_data_bvals_bvecs(data_fname,bvals_file,bvecs_file,out_dir=N
     bvecs_fname=os.path.join(out_dir,bvecs_fname)
     
     print('Selecting appropriate volumes and bvals/bvecs for DKE.')
-    print('Output to file: ' + out_fname)
     
-    if not IN_MEM: #if we think that it is going to be too big for memory, we use the fsl command-line tool
-        vol_list=str(vol_list).strip('[]').replace(" ","") #strip the []s and remove spaces to format as expected by fslselectcols
-        cmd_input=['fslselectvols','-i',data_fname,'-o',out_fname,'--vols='+vol_list]
-        print(cmd_input)
-        if not(os.path.isfile(out_fname)) or CLOBBER:
-            np.savetxt(bvals_fname,bvals[bvals<bval_max_cutoff])
-            np.savetxt(bvecs_fname,bvecs[:,bvals<bval_max_cutoff])
-            subprocess.call(cmd_input)
-        else:
-            print("File exists, not overwriting.")
+    if len(vol_list) == nb.load(data_fname).shape[3]: #if we are going to select all of the volumes anyway, don't bother copying them!
+        print("All bvals selected, using original data file as input")
+        out_fname=data_fname
+        np.savetxt(bvals_fname,bvals[bvals<bval_max_cutoff])
+        np.savetxt(bvecs_fname,bvecs[:,bvals<bval_max_cutoff])
     else:
-        if not(os.path.isfile(out_fname)) or CLOBBER:
-            data,aff=imgLoad(data_fname)
-            niiSave(out_fname,data[...,vol_list],aff,CLOBBER=CLOBBER)
-            np.savetxt(bvals_fname,bvals[bvals<bval_max_cutoff])
-            np.savetxt(bvecs_fname,bvecs[:,bvals<bval_max_cutoff])
+        print('Output to file: ' + out_fname)    
+        if not IN_MEM: #if we think that it is going to be too big for memory, we use the fsl command-line tool
+            vol_list=str(vol_list).strip('[]').replace(" ","") #strip the []s and remove spaces to format as expected by fslselectcols
+            cmd_input=['fslselectvols','-i',data_fname,'-o',out_fname,'--vols='+vol_list]
+            print(cmd_input)
+            if not(os.path.isfile(out_fname)) or CLOBBER:
+                np.savetxt(bvals_fname,bvals[bvals<bval_max_cutoff])
+                np.savetxt(bvecs_fname,bvecs[:,bvals<bval_max_cutoff])
+                subprocess.call(cmd_input)
+            else:
+                print("File exists, not overwriting.")
         else:
-            print("File exists, not overwriting.")
+            if not(os.path.isfile(out_fname)) or CLOBBER:
+                data,aff=imgLoad(data_fname)
+                niiSave(out_fname,data[...,vol_list],aff,CLOBBER=CLOBBER)
+                np.savetxt(bvals_fname,bvals[bvals<bval_max_cutoff])
+                np.savetxt(bvecs_fname,bvecs[:,bvals<bval_max_cutoff])
+            else:
+                print("File exists, not overwriting.")
     return out_fname, bvals[bvals<bval_max_cutoff], bvecs[:,bvals<bval_max_cutoff]
 
 def DKE_by_slice(data,gtab,slices='all'):
@@ -173,6 +180,19 @@ def create_python_exec(out_dir,code=["#!/usr/bin/python",""],name="CJS_py"):
 def run_diffusion_kurtosis_estimatory_dipy(data_fnames,bvals_fnames,bvecs_fnames,out_root_dir,IDs=None,TractREC_path='/home/cic/stechr/Documents/code/TractREC/TractREC',bval_max_cutoff=3200,slices='all',NLMEANS_DENOISE=False,IN_MEM=True):
     """
     Pass matched lists of data filenames, bval filenames, and bvec filenames, along with a root directory for the output
+    INPUT:
+        - data_fnames       list of diffusion data files
+        - bvals_fnames      list of bvals files
+        - bvecs_fnames      list of bvecs files
+        - out_root_dir      root directory of output (see below for subdir name)
+        - IDs               list of IDs that are used to create subdir names, best to set this since I only make a weak stab at getting the ID from filenames
+        - TractREC_path     path to TractREC code where the preprocessing scripts are held, needed for qsub submission
+        - bval_max_cutoff   bval cutoff value for selection of vols to be included in DKE - filenames are derived from this
+        - slices            list of slice indices to process, or 'all'
+        - NLMEANS_DENOISE   denoise or not, may run out of memory with large datasets (i.e., HCP)
+        - IN_MEM            perform diffusion volume selection (based on bvals that were selected by bval_max_cutoff) in mem or with fslselectcols via command line
+    RETURNS: 
+        - nothing, but dumps all DKE calcs (MK, RK, AK) in out_dir/ID
     """
     import os
     
@@ -194,9 +214,9 @@ def run_diffusion_kurtosis_estimatory_dipy(data_fnames,bvals_fnames,bvecs_fnames
         code=["#!/usr/bin/python","","import sys","sys.path.append('{0}')".format(TractREC_path),"import preprocessing as pr"]
         code.append("pr.DKE('{data_fname}','{bvals_fname}','{bvecs_fname}',bval_max_cutoff={bval_max_cutoff},out_dir='{out_dir}',slices={slices},NLMEANS_DENOISE={NLMEANS_DENOISE},IN_MEM={IN_MEM})""".format(data_fname=fname,bvals_fname=bvals,bvecs_fname=bvecs,\
             bval_max_cutoff=bval_max_cutoff,out_dir=out_dir,slices=slices,NLMEANS_DENOISE=NLMEANS_DENOISE,IN_MEM=IN_MEM))
-        py_sub_full_fname=create_python_exec(out_dir=out_dir,code=code,name=ID+'_DKE_dipy')
+        py_sub_full_fname=create_python_exec(out_dir=out_dir,code=code,name='DKE_'+ID)
         
-        submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name=ID+'_DKE_dipy',nthreads=4,mem=1.75,outdir=out_dir,\
+        submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=4,mem=1.75,outdir=out_dir,\
                         description="Diffusion kurtosis estimation with dipy",SUBMIT=False)
 
 #DKE('/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/data.nii.gz','/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvals',\
