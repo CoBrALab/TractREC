@@ -120,9 +120,10 @@ def DKE(data_fname,bvals_fname,bvecs_fname,bval_max_cutoff=3200,out_dir=None,sli
         sigma = estimate_sigma(data, N=4)
         den = nlmeans(data, sigma=sigma, mask=mask.astype('bool'))
     
+    del data
     #initiate and run the DKE model
-    DK_stats=DKE_by_slice(data,gtab,slices=slices)
-    del data #clear this from mem, just in case it is huuuuge!
+    DK_stats=DKE_by_slice(maskdata,gtab,slices=slices)
+    del maskdata #clear this from mem, just in case it is huuuuge!
     
     out_fname=out_fname_base+"MK.nii.gz"
     niiSave(out_fname,DK_stats[...,0],aff)
