@@ -177,7 +177,7 @@ def create_python_exec(out_dir,code=["#!/usr/bin/python",""],name="CJS_py"):
     os.chmod(subFullName,st.st_mode | stat.S_IEXEC) #make executable
     return subFullName
     
-def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,out_root_dir,IDs=None,TractREC_path='/home/cic/stechr/Documents/code/TractREC/TractREC',bval_max_cutoff=3200,slices='all',NLMEANS_DENOISE=False,IN_MEM=True):
+def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,out_root_dir,IDs=None,bval_max_cutoff=3200,slices='all',NLMEANS_DENOISE=False,IN_MEM=True,SUBMIT=False):
     """
     Pass matched lists of data filenames, bval filenames, and bvec filenames, along with a root directory for the output
     INPUT:
@@ -191,10 +191,14 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
         - slices            list of slice indices to process, or 'all'
         - NLMEANS_DENOISE   denoise or not, may run out of memory with large datasets (i.e., HCP)
         - IN_MEM            perform diffusion volume selection (based on bvals that were selected by bval_max_cutoff) in mem or with fslselectcols via command line
+        - SUBMIT            submit to SGE (False=just create the .py and .sub submission files)
+
     RETURNS: 
         - nothing, but dumps all DKE calcs (MK, RK, AK) in out_dir/ID
     """
     import os
+    
+    caller_path=os.path.dirname(os.path.abspath(__file__)) #path to this script, so we can add it to a sys.addpath statement
     
     if not(len(data_fnames) == len(bvals_fnames)) or not(len(data_fnames) == len(bvecs_fnames)) or not(len(bvecs_fnames) == len(bvals_fnames)):
         print("Inconsistent number of files were input.")
@@ -211,14 +215,16 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
         print(ID)
         out_dir=os.path.join(out_root_dir,ID)
         create_dir(out_dir)
-        code=["#!/usr/bin/python","","import sys","sys.path.append('{0}')".format(TractREC_path),"import preprocessing as pr"]
+        code=["#!/usr/bin/python","","import sys","sys.path.append('{0}')".format(caller_path),"import preprocessing as pr"]
         code.append("pr.DKE('{data_fname}','{bvals_fname}','{bvecs_fname}',bval_max_cutoff={bval_max_cutoff},out_dir='{out_dir}',slices={slices},NLMEANS_DENOISE={NLMEANS_DENOISE},IN_MEM={IN_MEM})""".format(data_fname=fname,bvals_fname=bvals,bvecs_fname=bvecs,\
             bval_max_cutoff=bval_max_cutoff,out_dir=out_dir,slices=slices,NLMEANS_DENOISE=NLMEANS_DENOISE,IN_MEM=IN_MEM))
         py_sub_full_fname=create_python_exec(out_dir=out_dir,code=code,name='DKE_'+ID)
         
-        submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=4,mem=1.75,outdir=out_dir,\
-                        description="Diffusion kurtosis estimation with dipy",SUBMIT=False)
+        submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=4,mem=3.75,outdir=out_dir,\
+                        description="Diffusion kurtosis estimation with dipy",SUBMIT=SUBMIT)
 
 #DKE('/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/data.nii.gz','/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvals',\
 #    '/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvecs',\
 #    out_dir='/data/chamal/projects/steele/working/HCP_CB_DWI/processing/DKI/100307_dipy_3K_new',slices='all',NLMEANS_DENOISE=False,IN_MEM=True)
+import os
+print os.path.realpath(__file__)
