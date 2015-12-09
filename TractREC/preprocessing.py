@@ -200,7 +200,7 @@ def DKE(data_fname,bvals_fname,bvecs_fname,bval_max_cutoff=3200,out_dir=None,sli
     bvals=sanitize_bvals(bvals)
     gtab=gradient_table(bvals, bvecs)
     
-    #XXX vol_idx could be set according to b0 if you like?
+    #XXX vol_idx could be set according to b0 if you like, but this seems to work for now
     print("Creating brain mask")    
     maskdata, mask = median_otsu(data, 4, 2, False, vol_idx=[0, 1], dilate=1)
       
@@ -339,9 +339,9 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
                                 description="Diffusion kurtosis estimation with dipy",SUBMIT=False)
         print("")
 
-#DKE('/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/data.nii.gz','/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvals',\
-#    '/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvecs',\
-#    out_dir='/data/chamal/projects/steele/working/HCP_CB_DWI/processing/DKI/100307_dipy_3K_new',slices='all',SMTH_DEN=None,IN_MEM=True)
+DKE('/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/data.nii.gz','/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvals',\
+    '/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvecs',\
+    out_dir='/data/chamal/projects/steele/working/HCP_CB_DWI/processing/DKI/100307_dipy_3K_new',slices='all',SMTH_DEN="smth",IN_MEM=True)
 
 #import os
 #print os.path.realpath(__file__)

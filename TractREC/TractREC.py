@@ -1086,6 +1086,7 @@ def run_diffusion_kurtosis_estimator(sub_root_dir, ID, data_fname, bvals_file, b
     import numpy as np
     import nibabel as nb
     
+    GAUSS_SMTH_MULTIPLIER=1.25 #taken from the DKI papers
     if out_dir is None:
         out_dir=os.path.join(sub_root_dir,ID)
     
@@ -1107,7 +1108,7 @@ def run_diffusion_kurtosis_estimator(sub_root_dir, ID, data_fname, bvals_file, b
         print("##=========================================================================##")
         return
     dke_data_fname=os.path.basename(fnames[0])
-    v=nb.load(full_fname).get_header()['pixdim'][1:4]
+    v=nb.load(full_fname).get_header()['pixdim'][1:4]*GAUSS_SMTH_MULTIPLIER
     vox_dims=" ".join(map(str,v)) #map to string, then convert to the format that we need
     print(dke_data_fname)
     bvals_used = " ".join(fnames[1]) #list of bvals used
