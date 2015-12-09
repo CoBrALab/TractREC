@@ -180,6 +180,7 @@ def DKE_by_slice(data,gtab,slices='all'):
 def DKE(data_fname,bvals_fname,bvecs_fname,bval_max_cutoff=3200,out_dir=None,slices='all',SMTH_DEN=None,IN_MEM=False):
     """
     DKE with dipy (dipy.__version__>=0.10.0), outputs MK, AK, and RK without and (potentially) with denoising
+    SMTH_DEN can take multiple arguments in list format ['smth','nlmeans'] - currently always does DKE with native data as well (XXX could add this as 'natv')
     """
     from dipy.core.gradients import gradient_table
     from dipy.segment.mask import median_otsu
@@ -230,7 +231,7 @@ def DKE(data_fname,bvals_fname,bvecs_fname,bval_max_cutoff=3200,out_dir=None,sli
     del DK_stats #remove from mem
     
     if 'nlmeans' in SMTH_DEN:
-        print("Running the model in nlmeans denoised data")
+        print("Running the model on denoised data")
         print("==========================================")    
         DK_stats_den=DKE_by_slice(den,gtab,slices=slices)
         out_fname=out_fname_base+"MK_den.nii.gz"
@@ -242,7 +243,7 @@ def DKE(data_fname,bvals_fname,bvecs_fname,bval_max_cutoff=3200,out_dir=None,sli
         del DK_stats_den
     
     if 'smth' in SMTH_DEN:
-        print("Running the model in nlmeans smoothed data " + "(vox_dim*"+str(GAUSS_SMTH_MULTIPLIER)+")")
+        print("Running the model on smoothed data " + "(vox_dim*"+str(GAUSS_SMTH_MULTIPLIER)+")")
         print("=========================================================")    
         DK_stats_smth=DKE_by_slice(smth,gtab,slices=slices)
         out_fname=out_fname_base+"MK_smth.nii.gz"
@@ -343,9 +344,10 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
                                 description="Diffusion kurtosis estimation with dipy",SUBMIT=False)
         print("")
 
-DKE('/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/data.nii.gz','/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvals',\
-    '/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvecs',\
-    out_dir='/data/chamal/projects/steele/working/HCP_CB_DWI/processing/DKI/100307_dipy_3K_new',slices='all',SMTH_DEN="smth",IN_MEM=True)
+# XXX stuff for testing XXX
+#DKE('/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/data.nii.gz','/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvals',\
+#    '/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvecs',\
+#    out_dir='/data/chamal/projects/steele/working/HCP_CB_DWI/processing/DKI/100307_dipy_3K_new',slices='all',SMTH_DEN="smth",IN_MEM=True)
 
 #import os
 #print os.path.realpath(__file__)
