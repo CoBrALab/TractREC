@@ -216,6 +216,8 @@ def DKE(data_fname,bvals_fname,bvecs_fname,bval_max_cutoff=3200,out_dir=None,sli
     del data
     
     #initiate and run the DKE model
+    print("Running model on raw data")    
+    print("=========================")    
     DK_stats=DKE_by_slice(maskdata,gtab,slices=slices)
     del maskdata #clear this from mem, just in case it is huuuuge!
     
@@ -228,7 +230,8 @@ def DKE(data_fname,bvals_fname,bvecs_fname,bval_max_cutoff=3200,out_dir=None,sli
     del DK_stats #remove from mem
     
     if 'nlmeans' in SMTH_DEN:
-        print("Now do the same thing with the denoised data!")
+        print("Running the model in nlmeans denoised data")
+        print("==========================================")    
         DK_stats_den=DKE_by_slice(den,gtab,slices=slices)
         out_fname=out_fname_base+"MK_den.nii.gz"
         niiSave(out_fname,DK_stats_den[...,0],aff)
@@ -239,7 +242,8 @@ def DKE(data_fname,bvals_fname,bvecs_fname,bval_max_cutoff=3200,out_dir=None,sli
         del DK_stats_den
     
     if 'smth' in SMTH_DEN:
-        print("Now do the same thing with the denoised data!")
+        print("Running the model in nlmeans smoothed data " + "(vox_dim*"+str(GAUSS_SMTH_MULTIPLIER)+")")
+        print("=========================================================")    
         DK_stats_smth=DKE_by_slice(smth,gtab,slices=slices)
         out_fname=out_fname_base+"MK_smth.nii.gz"
         niiSave(out_fname,DK_stats_smth[...,0],aff)
