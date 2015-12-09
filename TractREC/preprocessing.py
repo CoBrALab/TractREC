@@ -291,7 +291,7 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
         - TractREC_path     path to TractREC code where the preprocessing scripts are held, needed for qsub submission
         - bval_max_cutoff   bval cutoff value for selection of vols to be included in DKE - filenames are derived from this
         - slices            list of slice indices to process, or 'all' XXX THIS ONLY WORKS FOR ALL NOW
-        - SMTH_DEN          smooth, denoise, or not {'smth','nlmeans',None}, may run out of memory with large datasets (i.e., HCP)
+        - SMTH_DEN          list to select smooth, denoise, or not ['smth','nlmeans',''], may run out of memory with large datasets (i.e., HCP)
         - IN_MEM            perform diffusion volume selection (based on bvals that were selected by bval_max_cutoff) in mem or with fslselectcols via command line
         - SUBMIT            submit to SGE (False=just create the .py and .sub submission files)
         - CLOBBER           force overwrite of output files (.py and .sub files are always overwritten regardless)
@@ -333,15 +333,17 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
                 bval_max_cutoff=bval_max_cutoff,out_dir=out_dir,slices=slices,SMTH_DEN=SMTH_DEN,IN_MEM=IN_MEM))
             py_sub_full_fname=create_python_exec(out_dir=out_dir,code=code,name='DKE_'+ID)
             if CLOBBER or not(os.path.exists(py_sub_full_fname)): #XXX check based on the .py filename (i.e., we ran this before ...)
-                print("Creating submission files and following your instructions for submission."),
+                print("Creating submission files and following your instructions for submission. (CLOBBER=True)"),
+                print(" (SUBMIT=" + str(SUBMIT)+")")
+                submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=4,mem=3.75,outdir=out_dir,\
+                                description="Diffusion kurtosis estimation with dipy",SUBMIT=SUBMIT)
+            elif not(os.path.exists(py_sub_full_fname)):
+                print("Creating submission files and following your instructions for submission. (CLOBBER=False)")
                 print(" (SUBMIT=" + str(SUBMIT)+")")
                 submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=4,mem=3.75,outdir=out_dir,\
                                 description="Diffusion kurtosis estimation with dipy",SUBMIT=SUBMIT)
             else:
-                print("Creating submission files, but not submitting.")
-                print("Set CLOBBER=True if you wish to submit.")
-                submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=4,mem=3.75,outdir=out_dir,\
-                                description="Diffusion kurtosis estimation with dipy",SUBMIT=False)
+                print(".py submission file extists and you didn't tell me to CLOBBER it.")
         print("")
 
 # XXX stuff for testing XXX
