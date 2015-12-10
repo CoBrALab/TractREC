@@ -358,7 +358,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
     elif result=='max':
         return results.maxx
 
-def extract_quantitative_metric(metric_files,label_files,label_df=None,label_subset_idx=None,label_tag="label_",metric='mean',\
+def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,label_subset_idx=None,label_tag="label_",metric='mean',\
                                 thresh_mask_files=None,ROI_mask_files=None,thresh_val=0.35,max_val=1,thresh_type='upper',erode_vox=None,zfill_num=3,\
                                 DEBUG_DIR=None,VERBOSE=False,USE_MASK_RES=False):
     """
@@ -367,6 +367,7 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
     INPUT:
         - metric_files      - list of files for the metric that you are extracting
         - label_files       - list of label files matched to each file in metric_files (currently restricted to ID at the beginning of file name ==> ID_*)
+        - IDs               - list of IDs for matching files - no easy way to get around this :-/
         - label_df          - pandas dataframe of label index (index) and description (label_id)
         - label_subset_idx  - list of label indices that you want to extract data from [10, 200, 30]
         - label_tag         - string that will precede the label description in the column header
@@ -422,7 +423,10 @@ def extract_quantitative_metric(metric_files,label_files,label_df=None,label_sub
         ## XXX START THESE CHECKS COULD BE REMOVED ????
         # XXX making assumptions about how the files are named/stored that will not hold for other datasets :-/
         # by passing a list of IDs as well...?
-        ID=os.path.basename(os.path.dirname(a_file)) #first get the ID, since you know how things are stored... :-/
+        if IDs is None:
+            ID=os.path.basename(os.path.dirname(a_file)) #first get the ID, since you know how things are stored... :-/
+        else:
+            ID=IDs[idx] #XXX THIS IS BAD BAD BAD, YOU NEED TO REFACTOR TO BASE LOOPING ON IDs to fix this XXX
         if VERBOSE:
             print(ID)
         else:
