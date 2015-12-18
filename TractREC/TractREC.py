@@ -251,8 +251,9 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
             d=resample_img(img_fname,maff,np.shape(mask),interpolation='nearest').get_data()
             chosen_aff=maff
             chosen_shape=np.shape(mask)
-        else:
-            pass #they are the same and we already loaded the data
+        else: #they are the same and we already loaded the data, doesn't matter which is the aff
+            chosen_aff=maff
+            chosen_shape=np.shape(mask)
     else:     #default way, use img_fname resolution 
         chosen_aff=daff
         chosen_shape=np.shape(d)          
@@ -314,7 +315,12 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
         del single_mask
 
     if combined_mask_output_fname is not None:
+        if VERBOSE:
+            print(" Debug files:")
+            print("  "+combined_mask_output_fname)
+            print("  "+combined_mask_output_fname.split('.')[0]+"_metric.nii.gz")
         niiSave(combined_mask_output_fname,mask,chosen_aff,data_type='uint16')
+        niiSave(combined_mask_output_fname.split('.')[0]+"_metric.nii.gz",d,chosen_aff)
 
     if VERBOSE:
         print("Mask index extraction: "),
@@ -493,6 +499,7 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
                 res=extract_stats_from_masked_image(a_file,label_file,thresh_mask_fname=thresh_mask_fname,\
                     combined_mask_output_fname=combined_mask_output_fname,ROI_mask_fname=ROI_mask_fname,thresh_val=thresh_val,thresh_type=thresh_type,\
                     label_subset=label_subset_idx,erode_vox=erode_vox,result='all',max_val=max_val,VERBOSE=VERBOSE,USE_MASK_RES=USE_MASK_RES)
+
                 #now put the data into the rows:
                 df_4d.loc[idx,'ID']=int(ID)
                 df_4d.loc[idx,'metric_file']=a_file 
@@ -501,6 +508,7 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
                 df_4d.loc[idx,'thresh_val']=thresh_val #this is overkill, since it should always be the same
                 df_4d.loc[idx,'thresh_type']=thresh_type #this is overkill, since it should always be the same
                 df_4d.loc[idx,'ROI_mask']=ROI_mask_fname
+
                 if metric is 'mean':
                     df_4d.loc[idx,7::]=res.mean
                 elif metric is 'median':
