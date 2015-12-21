@@ -171,19 +171,22 @@ def select_mask_idxs(mask_img_data,mask_subset_idx):
 
 def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,combined_mask_output_fname=None,ROI_mask_fname=None,thresh_val=1,\
                                     thresh_type='upper',result='all',label_subset=None,SKIP_ZERO_LABEL=True,nonzero_stats=True,\
-                                    erode_vox=None,min_val=None,max_val=None,VERBOSE=False,USE_MASK_RES=False):
+                                    erode_vox=None,min_val=None,max_val=None,VERBOSE=False,USE_LABEL_RES=False):
     """
     XXX - THIS SHOULD BE CHECKED TO MAKE SURE THAT IT WORKS WITH ALL INPUTS - ASSUMPTIONS ABOUT TRANSFORMS WERE MADE XXX
+    XXX - works for NII and MNC, but NOT tested for combining the two of them XXX
+    
     Extract values from img at mask location
     Images do not need to be the same resolution, though this is highly preferred
         - resampling taken care of with nilearn tools
         - set nonzero_stats to false to include 0s in the calculations
-        - clipped to >max_val 
+        - clipped to >max_val
+        - volume output based on whichever resolution you chose with USE_LABEL_RES
        Input:
          - img_fname:                   3D image
          - mask_fname:                  3D mask in same space, single or multiple labels (though not necessarily same res)
          - thresh_mask_fname:           3D mask for thresholding, can be binary or not
-         - combined_mask_output_fname:  output final binary mask to this file (for confirmation of regions etc)
+         - combined_mask_output_fname:  output final binary mask to this file and a _metric file - will split on periods (used for confirmation of region overlap)
          - ROI_mask_fname               3D binary mask for selecting only this region for extraction (where mask=1)
          - thresh_val:                  upper value for thresholding thresh_mask_fname, values above/below this are set to 0
          - thresh_type:                 {'upper' = > thresh_val = 0,'lower' < thresh_val = 0}
@@ -195,10 +198,10 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
          - min_val:                     set min val for clipping of metric (eg., for FA maps, set to 0)
          - max_val:                     set max val for clipping of metric (eg., for FA maps, set to 1.0)
          - VERBOSE                      verbose reporting or not (default: False)
-         - USE_MASK_RES                 otherwise uses the res of the img_fname (default: False)
+         - USE_LABEL_RES                 otherwise uses the res of the img_fname (default: False)
          
        Output: (in data structure composed of numpy array(s))
-         - data, mean, median, std, minn, maxx
+         - data, volume, mean, median, std, minn, maxx
          - or all in data structure if result='all'
          - note: len(data)= num vox that the values were extracted from (i.e., [len(a_idx) for a_idx in res.data])
     
@@ -211,9 +214,10 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
     
     class return_results(object):
         #output results as an object with these values
-        def __init__(self,label_val,data,mean,median,std,minn,maxx):
+        def __init__(self,label_val,data,volume,mean,median,std,minn,maxx):
             self.label_val=np.array(label_val)
             self.data=np.array(data)
+            self.volume=np.array(volume)
             self.mean=np.array(mean)
             self.median=np.array(median)
             self.std=np.array(std)
@@ -225,39 +229,46 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
             template_txt="""
             label_val: {label_val}
             len(data): {data_len}
+            volume   : {volume}
             mean     : {mean}
             median   : {median}
             std      : {std}
             maxx     : {maxx}
             minn     : {minn}
             """
-            return template_txt.format(label_val=self.label_val,data_len=len(self.data),mean=self.mean, median=self.median, std=self.std, maxx=self.maxx, minn=self.minn)
+            return template_txt.format(label_val=self.label_val,data_len=len(self.data),volume=self.volume,mean=self.mean, median=self.median, std=self.std, maxx=self.maxx, minn=self.minn)
     
     d_label_val=[]
     d_data=[]
+    d_volume=[]
     d_mean=[]
     d_median=[]
     d_std=[]
     d_min=[]
     d_max=[]
     
-    d,daff=imgLoad(img_fname)
-    mask,maff=imgLoad(mask_fname)
+    d,daff,dr=imgLoad(img_fname,RETURN_RES=True)
+    mask,maff,mr=imgLoad(mask_fname,RETURN_RES=True)
     
     #dumb way to do this,but too much coffee today
-    if USE_MASK_RES:   
+    if USE_LABEL_RES:   
+        chosen_aff=maff
+        chosen_shape=np.shape(mask)
+        vox_vol=vox_vol=np.prod(mr) #and mask
+        if VERBOSE:
+            print(" Volume calculation based on label_file resolution: "), 
+            print(mr)
         # see if we need to resample the img to the mask
         if not np.array_equal(np.diagonal(maff),np.diagonal(daff)):
             d=resample_img(img_fname,maff,np.shape(mask),interpolation='nearest').get_data()
-            chosen_aff=maff
-            chosen_shape=np.shape(mask)
-        else: #they are the same and we already loaded the data, doesn't matter which is the aff
-            chosen_aff=maff
-            chosen_shape=np.shape(mask)
     else:     #default way, use img_fname resolution 
         chosen_aff=daff
-        chosen_shape=np.shape(d)          
-        # see if we need to resample the mask to the img
+        chosen_shape=np.shape(d)
+        vox_vol=vox_vol=np.prod(dr) #volume of single voxel for data
+        if VERBOSE:
+            print(" Volume calculation based on metric_file resolution: "), 
+            print(dr)
+         # see if we need to resample the mask to the img
         if not np.array_equal(np.diagonal(maff),np.diagonal(daff)):
             mask=resample_img(mask_fname,daff,np.shape(d),interpolation='nearest').get_data()
 
@@ -340,6 +351,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
         #keep track of these as we loop, convert to structure later on
         d_label_val.append(mask_id)
         d_data.append(dx)
+        d_volume.append(len(dx)*vox_vol)
         d_mean.append(np.mean(dx))
         d_median.append(np.median(dx))
         d_std.append(np.std(dx))
@@ -347,12 +359,14 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
         d_max.append(np.max(dx))
     if VERBOSE:
         print("")
-    results=return_results(d_label_val,d_data,d_mean,d_median,d_std,d_min,d_max)
+    results=return_results(d_label_val,d_data,d_volume,d_mean,d_median,d_std,d_min,d_max)
     
     if result=='all':
         return results
     elif result=='data':
         return results.data
+    elif result=='volume':
+        return results.volume
     elif result=='mean':
         return results.mean
     elif result=='median':
@@ -366,7 +380,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
 
 def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,label_subset_idx=None,label_tag="label_",metric='mean',\
                                 thresh_mask_files=None,ROI_mask_files=None,thresh_val=0.35,max_val=1,thresh_type='upper',erode_vox=None,zfill_num=3,\
-                                DEBUG_DIR=None,VERBOSE=False,USE_MASK_RES=False):
+                                DEBUG_DIR=None,VERBOSE=False,USE_LABEL_RES=False):
     """
     Extracts voxel-wise data for given set of matched label_files and metric files. Returns pandas dataframe of results
     CAREFUL: IDs are currently defined as the last directory of the input metric_files element
@@ -387,7 +401,7 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
         - zfill_num         - number of zeros to fill to make label index numbers line up properly
         - DEBUG_DIR         - directory to dump new thresholded and interpolated label files to
         - VERBOSE           - verbose reporting or not (default: False)
-        - USE_MASK_RES      - otherwise uses the res of the img_fname (default: False)
+        - USE_LABEL_RES      - otherwise uses the res of the img_fname (default: False)
         
     OUTPUT:
         - df_4d             - pandas dataframe of results
@@ -498,7 +512,7 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
                     print(""),
                 res=extract_stats_from_masked_image(a_file,label_file,thresh_mask_fname=thresh_mask_fname,\
                     combined_mask_output_fname=combined_mask_output_fname,ROI_mask_fname=ROI_mask_fname,thresh_val=thresh_val,thresh_type=thresh_type,\
-                    label_subset=label_subset_idx,erode_vox=erode_vox,result='all',max_val=max_val,VERBOSE=VERBOSE,USE_MASK_RES=USE_MASK_RES)
+                    label_subset=label_subset_idx,erode_vox=erode_vox,result='all',max_val=max_val,VERBOSE=VERBOSE,USE_LABEL_RES=USE_LABEL_RES)
 
                 #now put the data into the rows:
                 df_4d.loc[idx,'ID']=int(ID)
@@ -515,6 +529,8 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
                     df_4d.loc[idx,7::]=res.median
                 elif metric is 'vox_count':
                     df_4d.loc[idx,7::]=[len(a_idx) for a_idx in res.data] #gives num vox
+                elif metric is 'volume':
+                    df_4d.loc[idx,7::]=res.volume
                 else:
                     print("Incorrect metric selected.")
                     return
@@ -525,7 +541,6 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
                 print("##=====================================================================##")
     print ""
     return df_4d
-    
 
 def calc_3D_flux(data,structure=None,distance_method='edt'):
     """
