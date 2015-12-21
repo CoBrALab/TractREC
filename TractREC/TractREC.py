@@ -439,26 +439,33 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
     
     if DEBUG_DIR is not None:
         create_dir(DEBUG_DIR) #this is where the combined_mask_output is going to go so that we can check to see what we actually did to our masks
-    for idx, a_file in enumerate(metric_files):
-        DATA_EXISTS=True
-        #grab the correct label file to go with this img data file
+    
+    if IDs is None:
+        IDs=[os.path.basename(os.path.dirname(metric_file)) for metric_file in metric_files] #if ID was not set, we assume that we can generate it here as the last directory of the path to the metric_file
+        print("No IDs were specified, attempting to reconstruct them as the last subdirectory of the input metric files")
+        print(" e.g., "+ os.path.basename(os.path.dirname(metric_files[0])))
         
-        ## XXX START THESE CHECKS COULD BE REMOVED ????
-        # XXX making assumptions about how the files are named/stored that will not hold for other datasets :-/
-        # by passing a list of IDs as well...?
-        if IDs is None:
-            ID=os.path.basename(os.path.dirname(a_file)) #first get the ID, since you know how things are stored... :-/
-        else:
-            ID=IDs[idx] #XXX THIS IS BAD BAD BAD, YOU NEED TO REFACTOR TO BASE LOOPING ON IDs to fix this XXX
+    for idx,ID in enumerate(IDs):
+        DATA_EXISTS=True
+        #grab the correct label and metric files to go with the ID
+        
         if VERBOSE:
             print(ID)
         else:
             print(ID),
+        metric_file=[s for s in metric_files if ID in s] #make sure our label file is in the list that was passed
         label_file=[s for s in label_files if ID in s] #make sure our label file is in the list that was passed
+        if len(metric_file)>1:
+            print("")
+            print "OH SHIT, too many metric files. This should not happen!"
+        elif len(metric_file)==0:
+            print("")
+            print "OH SHIT, no matching metric file for: " + ID
+            DATA_EXISTS=False
+
         if len(label_file)>1:
             print("")
-            print "OH SHIT, too many label files. This should not happen!"
-            
+            print "OH SHIT, too many label files. This should not happen!"          
         elif len(label_file)==0:
             print("")
             print "OH SHIT, no matching label file for: " + ID
@@ -504,6 +511,7 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
                 else:
                     combined_mask_output_fname=None
                 
+                metric_file=metric_file[0] #break them out of the list they were stored as
                 label_file=label_file[0]
                 
                 if thresh_mask_fname is not None: 
@@ -512,18 +520,18 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
                     ROI_mask_fname=ROI_mask_fname[0]
                 
                 if VERBOSE:
-                    print(" metric    : " + a_file)
+                    print(" metric    : " + metric_file)
                     print(" label     : " + label_file)
                     print(" thresh    : " + str(thresh_mask_fname))
                     print(" thresh_val: " + str(thresh_val))
                     print(""),
-                res=extract_stats_from_masked_image(a_file,label_file,thresh_mask_fname=thresh_mask_fname,\
+                res=extract_stats_from_masked_image(metric_file,label_file,thresh_mask_fname=thresh_mask_fname,\
                     combined_mask_output_fname=combined_mask_output_fname,ROI_mask_fname=ROI_mask_fname,thresh_val=thresh_val,thresh_type=thresh_type,\
                     label_subset=label_subset_idx,erode_vox=erode_vox,result='all',max_val=max_val,VERBOSE=VERBOSE,USE_LABEL_RES=USE_LABEL_RES)
                 
                 #now put the data into the rows:
                 df_4d.loc[idx,'ID']=int(ID)
-                df_4d.loc[idx,'metric_file']=a_file 
+                df_4d.loc[idx,'metric_file']=metric_file 
                 df_4d.loc[idx,'label_file']=label_file 
                 df_4d.loc[idx,'thresh_file']=thresh_mask_fname 
                 df_4d.loc[idx,'thresh_val']=thresh_val #this is overkill, since it should always be the same
