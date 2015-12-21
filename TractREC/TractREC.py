@@ -340,18 +340,21 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
         if VERBOSE:
             print(mask_id),            
         dx=np.ma.masked_array(d,np.ma.make_mask(np.logical_not(mask==mask_id))).compressed()
-        #print(len(dx))
+        
         if nonzero_stats:
             dx=dx[dx>0]
         if not max_val is None:
             dx[dx>max_val]=max_val
         if not min_val is None:
             dx[dx<min_val]=min_val
-        
+        if len(dx) == 0: #NO DATA WAS RECOVERED FROM THIS MASK, report as zeros?
+            dx=np.array([0])
+            d_volume.append(0) #volume is a special case, need to set explicitly
+        else:
+            d_volume.append(len(dx)*vox_vol)
         #keep track of these as we loop, convert to structure later on
         d_label_val.append(mask_id)
         d_data.append(dx)
-        d_volume.append(len(dx)*vox_vol)
         d_mean.append(np.mean(dx))
         d_median.append(np.median(dx))
         d_std.append(np.std(dx))
@@ -453,9 +456,11 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
             print(ID),
         label_file=[s for s in label_files if ID in s] #make sure our label file is in the list that was passed
         if len(label_file)>1:
+            print("")
             print "OH SHIT, too many label files. This should not happen!"
             
         elif len(label_file)==0:
+            print("")
             print "OH SHIT, no matching label file for: " + ID
             DATA_EXISTS=False
         
@@ -465,9 +470,11 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
             else:
                 thresh_mask_fname=[s for s in thresh_mask_files if ID in s] #make sure our label file is in the list that was passed
                 if len(thresh_mask_fname)>1:
+                    print("")
                     print "OH SHIT, too many threshold mask files. This should not happen!"
                     
                 elif len(thresh_mask_fname)==0:
+                    print("")
                     print "OH SHIT, no matching threshold mask file for: " + ID
                     DATA_EXISTS=False
         else:
@@ -513,7 +520,7 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
                 res=extract_stats_from_masked_image(a_file,label_file,thresh_mask_fname=thresh_mask_fname,\
                     combined_mask_output_fname=combined_mask_output_fname,ROI_mask_fname=ROI_mask_fname,thresh_val=thresh_val,thresh_type=thresh_type,\
                     label_subset=label_subset_idx,erode_vox=erode_vox,result='all',max_val=max_val,VERBOSE=VERBOSE,USE_LABEL_RES=USE_LABEL_RES)
-
+                
                 #now put the data into the rows:
                 df_4d.loc[idx,'ID']=int(ID)
                 df_4d.loc[idx,'metric_file']=a_file 
@@ -522,7 +529,6 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
                 df_4d.loc[idx,'thresh_val']=thresh_val #this is overkill, since it should always be the same
                 df_4d.loc[idx,'thresh_type']=thresh_type #this is overkill, since it should always be the same
                 df_4d.loc[idx,'ROI_mask']=ROI_mask_fname
-
                 if metric is 'mean':
                     df_4d.loc[idx,7::]=res.mean
                 elif metric is 'median':
