@@ -332,18 +332,18 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
             code.append("pr.DKE('{data_fname}','{bvals_fname}','{bvecs_fname}',bval_max_cutoff={bval_max_cutoff},out_dir='{out_dir}',slices='{slices}',SMTH_DEN={SMTH_DEN},IN_MEM={IN_MEM})""".format(data_fname=fname,bvals_fname=bvals,bvecs_fname=bvecs,\
                 bval_max_cutoff=bval_max_cutoff,out_dir=out_dir,slices=slices,SMTH_DEN=SMTH_DEN,IN_MEM=IN_MEM))
             py_sub_full_fname=create_python_exec(out_dir=out_dir,code=code,name='DKE_'+ID)
-            if CLOBBER or not(os.path.exists(py_sub_full_fname)): #XXX check based on the .py filename (i.e., we ran this before ...)
-                print("Creating submission files and following your instructions for submission. (CLOBBER=True)"),
-                print(" (SUBMIT=" + str(SUBMIT)+")")
-                submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=4,mem=3.75,outdir=out_dir,\
-                                description="Diffusion kurtosis estimation with dipy",SUBMIT=SUBMIT)
-            elif not(os.path.exists(py_sub_full_fname)):
-                print("Creating submission files and following your instructions for submission. (CLOBBER=False)")
+            
+            #XXX this check condition currently does nothing, because the .py file is always created. Dumb.
+            if CLOBBER:
+                print("Creating submission files and following your instructions for submission to que. (CLOBBER=True)"),
                 print(" (SUBMIT=" + str(SUBMIT)+")")
                 submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=4,mem=3.75,outdir=out_dir,\
                                 description="Diffusion kurtosis estimation with dipy",SUBMIT=SUBMIT)
             else:
-                print(".py submission file extists and you didn't tell me to CLOBBER it.")
+                print("Creating submission files and following your instructions for submission to que. (CLOBBER=False)")
+                print(" (SUBMIT=" + str(SUBMIT)+")")
+                submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=4,mem=3.75,outdir=out_dir,\
+                                description="Diffusion kurtosis estimation with dipy",SUBMIT=SUBMIT)
         print("")
 
 # XXX stuff for testing XXX
