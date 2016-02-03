@@ -8,8 +8,8 @@ Created on Thu Oct 22 10:07:32 2015
 
 def imgLoad(full_fileName, RETURN_RES=False):
     """
-    Load img file with nibabel
-    returns data, affine, dimension resolution (if RETURN_RES=True)
+    Load img file with nibabel, returns data and affine by default
+    returns data, affine, and dimension resolution (if RETURN_RES=True)
     """
     import nibabel as nb
     img=nb.load(full_fileName)
@@ -45,7 +45,7 @@ def niiSave(full_fileName, data, aff, data_type='float32', CLOBBER=True):
         img.to_filename(full_fileName)
     else:
         print("This file exists and CLOBBER was set to false, file not saved.")
-        print(full_fileName)
+    print(full_fileName)
 
 def create_dir(some_directory):
     """
@@ -77,6 +77,7 @@ def get_img_bounds(img_data):
     """
     Gets the min and max in the three dimensions of 3d image data and returns 
     a 3,2 matrix of values of format dim*{min,max}
+    ONLY ignores values == 0
     """
     import numpy as np
     bounds=np.zeros((3,2))
@@ -198,7 +199,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
          - min_val:                     set min val for clipping of metric (eg., for FA maps, set to 0)
          - max_val:                     set max val for clipping of metric (eg., for FA maps, set to 1.0)
          - VERBOSE                      verbose reporting or not (default: False)
-         - USE_LABEL_RES                 otherwise uses the res of the img_fname (default: False)
+         - USE_LABEL_RES                otherwise uses the res of the img_fname (default: False)
          
        Output: (in data structure composed of numpy array(s))
          - data, volume, mean, median, std, minn, maxx
