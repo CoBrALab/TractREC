@@ -24,7 +24,7 @@ niiLoad=imgLoad
 #XXX add mnc saving
 #def imgSave(full_fileName, data, aff, data_type='float32', CLOBBER=True):
 
-def niiSave(full_fileName, data, aff, data_type='float32', CLOBBER=True):
+def niiSave(full_fileName, data, aff, data_type='float32', CLOBBER=True, VERBOSE=False):
     """
     Convenience function to write nii data to file
     Input:
@@ -45,7 +45,8 @@ def niiSave(full_fileName, data, aff, data_type='float32', CLOBBER=True):
         img.to_filename(full_fileName)
     else:
         print("This file exists and CLOBBER was set to false, file not saved.")
-    print(full_fileName)
+    if VERBOSE:
+        print(full_fileName)
 
 def create_dir(some_directory):
     """
@@ -209,9 +210,9 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
        e.g.,
          - res=extract_stats_from_masked_image(img_fname,mask_fname)
     """
-    
-    from nilearn.image import resample_img
+    import os
     import numpy as np
+    from nilearn.image import resample_img
     
     class return_results(object):
         #output results as an object with these values
@@ -251,14 +252,19 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
     d,daff,dr=imgLoad(img_fname,RETURN_RES=True)
     mask,maff,mr=imgLoad(mask_fname,RETURN_RES=True)
     
+    if os.path.splitext(mask_fname)[-1] == ".mnc": #test if the extension is mnc, and make sure we have integers in this case...
+            print("Looks like you are using mnc files. Make sure that ALL of your input data is in the same space and mnc format (i.e., don't mix mnc and nii.gz)")
+            print("***I will also force all your label values to be integers as a hack to fix non-integer values stored in the file. np.rint(labels).astype(int)***")
+            mask=np.rint(mask).astype(int) #round with rint and the convert to int
+    
     #dumb way to do this,but too much coffee today
     if USE_LABEL_RES:   
         chosen_aff=maff
         chosen_shape=np.shape(mask)
         vox_vol=vox_vol=np.prod(mr) #and mask
         if VERBOSE:
-            print(" Volume calculation based on label_file resolution: "), 
-            print(mr)
+            print(" Any calculation of volume will be based on label_file resolution: "), 
+            print(mr),
         # see if we need to resample the img to the mask
         if not np.array_equal(np.diagonal(maff),np.diagonal(daff)):
             d=resample_img(img_fname,maff,np.shape(mask),interpolation='nearest').get_data()
@@ -267,7 +273,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
         chosen_shape=np.shape(d)
         vox_vol=vox_vol=np.prod(dr) #volume of single voxel for data
         if VERBOSE:
-            print(" Volume calculation based on metric_file resolution: "), 
+            print(" Any calculation of volume will be based on metric_file resolution: "), 
             print(dr)
          # see if we need to resample the mask to the img
         if not np.array_equal(np.diagonal(maff),np.diagonal(daff)):
@@ -405,7 +411,7 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
         - zfill_num         - number of zeros to fill to make label index numbers line up properly
         - DEBUG_DIR         - directory to dump new thresholded and interpolated label files to
         - VERBOSE           - verbose reporting or not (default: False)
-        - USE_LABEL_RES      - otherwise uses the res of the img_fname (default: False)
+        - USE_LABEL_RES     - otherwise uses the res of the img_fname (default: False)
         
     OUTPUT:
         - df_4d             - pandas dataframe of results
@@ -424,7 +430,7 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
 
         label_subset_idx=np.unique(imgLoad(label_files[0])[0])
         label_subset_idx=label_subset_idx[label_subset_idx!=0]
-    
+
     if label_df is None: #WHAT? you didn't provide a label to idx matching dataframe??
         print("label_df dataframe (label index to name mapping) was not defined")
         print("Generic label names will be calculated from the unique values in the first label file")
