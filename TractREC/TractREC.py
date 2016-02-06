@@ -253,10 +253,12 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
     mask,maff,mr=imgLoad(mask_fname,RETURN_RES=True)
     
     if os.path.splitext(mask_fname)[-1] == ".mnc": #test if the extension is mnc, and make sure we have integers in this case...
-            print("Looks like you are using mnc files. Make sure that ALL of your input data is in the same space and mnc format (i.e., don't mix mnc and nii.gz)")
-            print("***I will also force all your label values to be integers as a hack to fix non-integer values stored in the file. np.rint(labels).astype(int)***")
+            if VERBOSE:
+                print(" Looks like you are using mnc files.")
+                print(" Make sure that ALL of your input data is in the same space and mnc format (i.e., don't mix mnc and nii.gz)")
+                print(" I will also force all your label values to be integers as a hack to fix non-integer values stored in the file. np.rint(labels).astype(int)")
             mask=np.rint(mask).astype(int) #round with rint and the convert to int
-    
+            
     #dumb way to do this,but too much coffee today
     if USE_LABEL_RES:   
         chosen_aff=maff
@@ -429,6 +431,12 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
         print("label_id = 0 was removed")
 
         label_subset_idx=np.unique(imgLoad(label_files[0])[0])
+        if os.path.splitext(label_files[0])[-1] == ".mnc":            
+            print("Looks like you are using mnc files.")
+            print("Make sure that ALL of your input data is in the same space and mnc format (i.e., don't mix mnc and nii.gz)")
+            print("I will be converting ALL of your labels to rounded integers to be safe. np.rint(labels).astype(int)")
+            label_subset_idx=np.rint(label_subset_idx).astype(int)
+        
         label_subset_idx=label_subset_idx[label_subset_idx!=0]
 
     if label_df is None: #WHAT? you didn't provide a label to idx matching dataframe??
