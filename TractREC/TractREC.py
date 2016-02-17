@@ -129,6 +129,10 @@ def erode_mask(img_data,iterations=1,mask=None,structure=None,LIMIT_EROSION=Fals
     import numpy as np
     import scipy.ndimage as ndimage
 
+    if iterations <1:
+        print("Why are you trying to erode by less than one iteration?")
+        print("No erosion performed, returing your data as is.")
+        return img_data
     if structure is None:
         structure=ndimage.morphology.generate_binary_structure(3,1) #neighbourhood
 
@@ -364,7 +368,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
         #keep track of these as we loop, convert to structure later on
         d_label_val.append(mask_id)
         d_data.append(dx)
-        d_mean.append(np.mean(dx))
+        d_mean.append(np.mean(dx)) #XXX could put a check here to set the values to NaN or None if there is no data
         d_median.append(np.median(dx))
         d_std.append(np.std(dx))
         d_min.append(np.min(dx))
@@ -545,7 +549,7 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
                     label_subset=label_subset_idx,erode_vox=erode_vox,result='all',max_val=max_val,VERBOSE=VERBOSE,USE_LABEL_RES=USE_LABEL_RES)
                 
                 #now put the data into the rows:
-                df_4d.loc[idx,'ID']=int(ID)
+                df_4d.loc[idx,'ID']=str(ID) #XXX there should be a more comprehensive solution to this
                 df_4d.loc[idx,'metric_file']=metric_file 
                 df_4d.loc[idx,'label_file']=label_file 
                 df_4d.loc[idx,'thresh_file']=thresh_mask_fname 
