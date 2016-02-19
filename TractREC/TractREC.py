@@ -112,6 +112,50 @@ def get_img_bounds(img_data):
 
     return bounds
 
+def crop_to_roi(img_data,roi_buffer=3,roi_coords=None,fill_value=0):
+    """
+    Crop image to region of interest based on non-zero voxels, coordinates, or roi_file (not implemented)
+    0-based indexing, of course
+    :param img_data:
+    :param roi_buffer:
+    :param roi_coords:
+    :param roi_file:
+    :param fill_value: value to fill into buffer
+    :return: img_data_crop, roi_coords
+    """
+
+    import numpy as np
+
+    if roi_buffer < 0:
+        roi_buffer = 0
+    roi_buffer=np.tile([-roi_buffer,roi_buffer],(3,1)) #create for x,y,z
+
+    if roi_coords is None:
+        roi_coords = get_img_bounds(img_data)+roi_buffer
+    else:
+        #XXX need to check if the coords are out of range
+        roi_coords = roi_coords + roi_buffer
+
+    r_c = np.copy(roi_coords)
+    r_c[:,1]=r_c[:,1] + 1 #now r_c has a start and stop for indexing
+    img_data_crop = img_data[r_c[0,0]:r_c[0,1],
+                    r_c[1,0]:r_c[1,1],
+                    r_c[2,0]:r_c[2,1]]
+
+    return img_data_crop, roi_coords
+
+def uncrop_to_roi(img_data_crop,roi_coords=None,fill_value=0):
+    """
+    uncrop data back to a full size, respecting voxel location based on the provided roi_coords
+    :param img_data_cropped:
+    :param roi_coords:
+    :return:
+    """
+
+    image_data=imag_data_crop
+
+    return image_data
+
 def erode_mask(img_data,iterations=1,mask=None,structure=None,LIMIT_EROSION=False,min_vox_count=10):
     """
     Binary erosion of 3D image data using scipy.ndimage package
