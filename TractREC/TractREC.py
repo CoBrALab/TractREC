@@ -112,7 +112,7 @@ def get_img_bounds(img_data):
 
     return bounds
 
-def crop_to_roi(img_data,roi_buffer=3,roi_coords=None,fill_value=0):
+def crop_to_roi(img_data,roi_buffer=3,roi_coords=None):
     """
     Crop image to region of interest based on non-zero voxels, coordinates, or roi_file (not implemented)
     0-based indexing, of course
@@ -120,7 +120,6 @@ def crop_to_roi(img_data,roi_buffer=3,roi_coords=None,fill_value=0):
     :param roi_buffer:
     :param roi_coords:
     :param roi_file:
-    :param fill_value: value to fill into buffer
     :return: img_data_crop, roi_coords
     """
 
@@ -144,17 +143,29 @@ def crop_to_roi(img_data,roi_buffer=3,roi_coords=None,fill_value=0):
 
     return img_data_crop, roi_coords
 
-def uncrop_to_roi(img_data_crop,roi_coords=None,fill_value=0):
+
+def uncrop_from_roi(img_data_crop,uncrop_shape,roi_coords,fill_value=0):
     """
-    uncrop data back to a full size, respecting voxel location based on the provided roi_coords
+    uncrop data back to a full size, respecting voxel location based on the provided roi_coords within the given uncrop_shape (numpy tuple)
     :param img_data_cropped:
+    :param uncrop_shape:
     :param roi_coords:
-    :return:
+    :param fill_value:
+    :return: img_data
     """
 
-    image_data=imag_data_crop
+    import numpy as np
 
-    return image_data
+    r_c=roi_coords
+
+    if fill_value != 0:
+        img_data=np.ones_like(uncrop_shape)*fill_value
+    else:
+        img_data=np.zeros_like(uncrop_shape)
+    img_data[r_c[0,0]:r_c[0,1],r_c[1,0]:r_c[1,1],r_c[2,0]:r_c[2,1]] = img_data_crop
+
+
+    return img_data
 
 def erode_mask(img_data,iterations=1,mask=None,structure=None,LIMIT_EROSION=False,min_vox_count=10):
     """
