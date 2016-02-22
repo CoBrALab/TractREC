@@ -6,15 +6,19 @@ Created on Thu Oct 22 10:07:32 2015
 """
 
 
-def imgLoad(full_fileName, RETURN_RES=False):
+def imgLoad(full_fileName, RETURN_RES=False, RETURN_HEADER=False):
 	"""
 	Load img file with nibabel, returns data and affine by default
 	returns data, affine, and dimension resolution (if RETURN_RES=True)
 	"""
 	import nibabel as nb
 	img=nb.load(full_fileName)
-	if RETURN_RES:
+	if RETURN_RES and not RETURN_HEADER:
 		return img.get_data(), img.affine, img.header.get_zooms()
+	elif RETURN_HEADER and not RETURN_RES:
+		return img.get_data(), img.affine, img.get_header()
+	elif RETURN_RES and RETURN_HEADER:
+		return img.get_data(), img.affine, img.header.get_zooms(), img.get_header()
 	else:
 		return img.get_data(), img.affine
 
@@ -24,22 +28,23 @@ niiLoad=imgLoad
 #XXX add mnc saving
 #def imgSave(full_fileName, data, aff, data_type='float32', CLOBBER=True):
 
-def niiSave(full_fileName, data, aff, data_type='float32', CLOBBER=True, VERBOSE=False):
+def niiSave(full_fileName, data, aff, header=None, data_type='float32', CLOBBER=True, VERBOSE=False):
 	"""
 	Convenience function to write nii data to file
 	Input:
 		- full_fileName:    you can figure that out
 		- data:             numpy array
 		- aff:              affine matrix
+		- header:			header data to write to file (use img.header to get the header of root file)
 		- data_type:        numpy data type ('uint32', 'float32' etc)
 		- CLOBBER:          overwrite existing file
 	"""
 	import os
 	import nibabel as nb
 
-	img=nb.Nifti1Image(data,aff)
+	img=nb.Nifti1Image(data,aff,header=header)
 	if data_type is not None: #if there is a particular data_type chosen, set it
-		data=data.astype(data_type)
+		#data=data.astype(data_type)
 		img.set_data_dtype(data_type)
 	if not(os.path.isfile(full_fileName)) or CLOBBER:
 		img.to_filename(full_fileName)
@@ -143,28 +148,22 @@ def crop_to_roi(img_data,roi_buffer=3,roi_coords=None):
 
 	return img_data_crop, roi_coords
 
-
-def uncrop_from_roi(img_data_crop,uncrop_shape,roi_coords,fill_value=0):
+def uncrop_from_roi(img_data_crop, uncrop_shape, roi_coords, fill_value=0):
 	"""
-	uncrop data back to a full size, respecting voxel location based on the provided roi_coords within the given uncrop_shape (numpy tuple)
-	:param img_data_cropped:
+	:param img_data_crop:
 	:param uncrop_shape:
 	:param roi_coords:
 	:param fill_value:
-	:return: img_data
+	:return:
 	"""
-
 	import numpy as np
-
+	uncrop_shape=np.array(uncrop_shape)
 	r_c=roi_coords
-
 	if fill_value != 0:
-		img_data=np.ones_like(uncrop_shape)*fill_value
+		img_data=np.ones(uncrop_shape).astype(np.dtype(img_data_crop))*fill_value
 	else:
-		img_data=np.zeros_like(uncrop_shape)
-	img_data[r_c[0,0]:r_c[0,1],r_c[1,0]:r_c[1,1],r_c[2,0]:r_c[2,1]] = img_data_crop
-
-
+		img_data=np.zeros(uncrop_shape).astype(np.dtype(img_data_crop))
+	img_data[r_c[0,0]:r_c[0,1]+1,r_c[1,0]:r_c[1,1]+1,r_c[2,0]:r_c[2,1]+1] = img_data_crop
 	return img_data
 
 def erode_mask(img_data,iterations=1,mask=None,structure=None,LIMIT_EROSION=False,min_vox_count=10):
