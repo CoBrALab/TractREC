@@ -228,6 +228,18 @@ def select_mask_idxs(mask_img_data,mask_subset_idx):
 	for idx in mask_subset_idx:
 		reduced_mask_data[mask_img_data==idx]=idx
 	return reduced_mask_data
+def affine1_to_affine2(aff1,aff2):
+	"""
+	Create transformation matrix for translating one affine to another, assuming scanner space is the same
+	(i.e., images acquired in the same session)
+	:param aff1:
+	:param aff2:
+	:return: aff
+	"""
+	#TODO test and fix?
+	import numpy as np
+	aff1_inv=np.invert(aff1)
+	return np.matmul(aff1_inv,aff2)
 
 def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,combined_mask_output_fname=None,ROI_mask_fname=None,thresh_val=None,\
 									thresh_type=None,result='all',label_subset=None,SKIP_ZERO_LABEL=True,nonzero_stats=True,\
