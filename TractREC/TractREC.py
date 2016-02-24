@@ -137,7 +137,7 @@ def crop_to_roi(img_data,roi_buffer=3,roi_coords=None):
 	if roi_coords is None:
 		roi_coords = get_img_bounds(img_data)+roi_buffer
 	else:
-		#XXX need to check if the coords are out of range
+		#TODO check if the coords are out of range (see nilearn.image.crop_img)
 		roi_coords = roi_coords + roi_buffer
 
 	r_c = np.copy(roi_coords)
@@ -174,7 +174,7 @@ def erode_mask(img_data,iterations=1,mask=None,structure=None,LIMIT_EROSION=Fals
 			 - img_data (np image array)
 			 - iterations = number of iterations for erosion
 			 - mask = mask img (np array) for restricting erosion
-			- structure = as defined by ndimage (should be 3,1 (no diags) if None)
+			- structure = as defined by ndimage (will be 3,1 (no diags) if None)
 			- LIMIT_EROSION = limits erosion to the step before the mask ended up with no voxels
 			- min_vox_count = minimum number of voxels to have in the img_data and still return this version, otherwise returns previous iteration
 
@@ -185,7 +185,7 @@ def erode_mask(img_data,iterations=1,mask=None,structure=None,LIMIT_EROSION=Fals
 
 	if iterations <1:
 		print("Why are you trying to erode by less than one iteration?")
-		print("No erosion performed, returing your data as is.")
+		print("No erosion performed, returning your data as is.")
 		return img_data
 	if structure is None:
 		structure=ndimage.morphology.generate_binary_structure(3,1) #neighbourhood
@@ -206,7 +206,7 @@ def generate_overlap_mask(mask1,mask2,structure=None):
 	"""
 	Create an overlap mask where a dilated version of mask1 overlaps mask2 (logical AND operation)
 	Uses ALL elements >0 for both masks, masks must be in same space
-	Dilates with full connectivity (3,3) by default
+	Dilates and then closes with full connectivity (3,3) by default
 	"""
 	import scipy.ndimage as ndi
 
@@ -307,8 +307,8 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
 	d_min=[]
 	d_max=[]
 
-	d,daff,dr=imgLoad(img_fname,RETURN_RES=True)
-	mask,maff,mr=imgLoad(mask_fname,RETURN_RES=True)
+	d,daff,dr,dh=imgLoad(img_fname,RETURN_RES=True,RETURN_HEADER=True)
+	mask,maff,mr,mh=imgLoad(mask_fname,RETURN_RES=True,RETURN_HEADER=True)
 
 	if os.path.splitext(mask_fname)[-1] == ".mnc": #test if the extension is mnc, and make sure we have integers in this case...
 			if VERBOSE:
@@ -320,6 +320,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
 	#dumb way to do this,but too much coffee today
 	if USE_LABEL_RES:
 		chosen_aff=maff
+		chosen_header=mh
 		chosen_shape=np.shape(mask)
 		vox_vol=vox_vol=np.prod(mr) #and mask
 		if VERBOSE:
@@ -330,6 +331,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
 			d=resample_img(img_fname,maff,np.shape(mask),interpolation='nearest').get_data()
 	else:     #default way, use img_fname resolution
 		chosen_aff=daff
+		chosen_header=dh
 		chosen_shape=np.shape(d)
 		vox_vol=vox_vol=np.prod(dr) #volume of single voxel for data
 		if VERBOSE:
@@ -397,8 +399,8 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
 			print(" Debug files:")
 			print("  "+combined_mask_output_fname)
 			print("  "+combined_mask_output_fname.split('.')[0]+"_metric.nii.gz")
-		niiSave(combined_mask_output_fname,mask,chosen_aff,data_type='uint16')
-		niiSave(combined_mask_output_fname.split('.')[0]+"_metric.nii.gz",d,chosen_aff)
+		niiSave(combined_mask_output_fname,mask,chosen_aff,data_type='uint16',header=chosen_header)
+		niiSave(combined_mask_output_fname.split('.')[0]+"_metric.nii.gz",d,chosen_aff,header=chosen_header)
 
 	if VERBOSE:
 		print("Mask index extraction: "),
