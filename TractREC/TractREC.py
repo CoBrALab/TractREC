@@ -229,8 +229,8 @@ def select_mask_idxs(mask_img_data,mask_subset_idx):
 		reduced_mask_data[mask_img_data==idx]=idx
 	return reduced_mask_data
 
-def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,combined_mask_output_fname=None,ROI_mask_fname=None,thresh_val=1.0,\
-									thresh_type='upper',result='all',label_subset=None,SKIP_ZERO_LABEL=True,nonzero_stats=True,\
+def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,combined_mask_output_fname=None,ROI_mask_fname=None,thresh_val=None,\
+									thresh_type=None,result='all',label_subset=None,SKIP_ZERO_LABEL=True,nonzero_stats=True,\
 									erode_vox=None,min_val=None,max_val=None,VERBOSE=False,USE_LABEL_RES=False):
 	"""
 	XXX - THIS SHOULD BE CHECKED TO MAKE SURE THAT IT WORKS WITH ALL INPUTS - ASSUMPTIONS ABOUT TRANSFORMS WERE MADE XXX
@@ -449,8 +449,9 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
 		return results.maxx
 
 def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,label_subset_idx=None,label_tag="label_",metric='mean',\
-								thresh_mask_files=None,ROI_mask_files=None,thresh_val=0.35,max_val=1,thresh_type='upper',erode_vox=None,zfill_num=3,\
+								thresh_mask_files=None,ROI_mask_files=None,thresh_val=None,max_val=None,thresh_type='upper',erode_vox=None,zfill_num=3,\
 								DEBUG_DIR=None,VERBOSE=False,USE_LABEL_RES=False):
+
 	"""
 	Extracts voxel-wise data for given set of matched label_files and metric files. Returns pandas dataframe of results
 	CAREFUL: IDs are currently defined as the last directory of the input metric_files element
