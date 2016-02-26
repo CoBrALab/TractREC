@@ -236,9 +236,9 @@ def affine1_to_affine2(aff1,aff2):
 	:param aff2:
 	:return: aff
 	"""
-	#TODO test and fix?
+	#TODO test
 	import numpy as np
-	aff1_inv=np.invert(aff1)
+	aff1_inv=np.linalg.inv(aff1)
 	return np.matmul(aff1_inv,aff2)
 
 def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,combined_mask_output_fname=None,ROI_mask_fname=None,thresh_val=None,\
@@ -463,7 +463,7 @@ def extract_stats_from_masked_image(img_fname,mask_fname,thresh_mask_fname=None,
 		return results.maxx
 
 def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,label_subset_idx=None,label_tag="label_",metric='mean',\
-								thresh_mask_files=None,ROI_mask_files=None,thresh_val=None,max_val=None,thresh_type='upper',erode_vox=None,zfill_num=3,\
+								thresh_mask_files=None,ROI_mask_files=None,thresh_val=None,max_val=None,thresh_type=None,erode_vox=None,zfill_num=3,\
 								DEBUG_DIR=None,VERBOSE=False,USE_LABEL_RES=False):
 
 	"""
@@ -498,6 +498,14 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
 
 	cols=['ID','metric_file','label_file','thresh_file','thresh_val','thresh_type','ROI_mask'] #used to link it to the other measures and to confirm that the masks were used in the correct order so that the values are correct
 
+	#if we only pass a single subject, make it a list so that we can loop over it without crashing
+	if isinstance(metric_files,basestring):
+		metric_files=[metric_files]
+	if isinstance(label_files,basestring):
+		label_files=[label_files]
+	if isinstance(IDs,basestring):
+		IDs=[IDs]
+
 	if label_subset_idx is None: #you didn't define your label indices, so we go get them for you from the 1st label file
 		print("label_subset_idx was not defined")
 		print("Label numbers were extracted from the first label file")
@@ -528,7 +536,7 @@ def extract_quantitative_metric(metric_files,label_files,IDs=None,label_df=None,
 	if DEBUG_DIR is not None:
 		create_dir(DEBUG_DIR) #this is where the combined_mask_output is going to go so that we can check to see what we actually did to our masks
 
-	if IDs is None:
+	if IDs is None: #TODO: remove this IDs setup and just assume that they put the files in the correct order
 		IDs=[os.path.basename(os.path.dirname(metric_file)) for metric_file in metric_files] #if ID was not set, we assume that we can generate it here as the last directory of the path to the metric_file
 		print("No IDs were specified, attempting to reconstruct them as the last subdirectory of the input metric files")
 		print(" e.g., "+ os.path.basename(os.path.dirname(metric_files[0])))
