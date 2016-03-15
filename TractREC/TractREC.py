@@ -348,9 +348,9 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         if VERBOSE:
             print(" Looks like you are using mnc files.")
             print(
-            " Make sure that ALL of your input data is in the same space and mnc format (i.e., don't mix mnc and nii.gz)")
+                " Make sure that ALL of your input data is in the same space and mnc format (i.e., don't mix mnc and nii.gz)")
             print(
-            " I will also force all your label values to be integers as a hack to fix non-integer values stored in the file. np.rint(labels).astype(int)")
+                " I will also force all your label values to be integers as a hack to fix non-integer values stored in the file. np.rint(labels).astype(int)")
         mask = np.rint(mask).astype(int)  # round with rint and the convert to int
 
     # dumb way to do this,but too much coffee today
@@ -543,11 +543,11 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         print("Label numbers were extracted from the first label file")
         print("label_id = 0 was removed")
 
-        label_subset_idx = np.unique(imgLoad(label_files[0])[0])
+        label_subset_idx = np.unique(imgLoad(label_files[0])[0]).astype(int)
         if os.path.splitext(label_files[0])[-1] == ".mnc":
             print("Looks like you are using mnc files.")
             print(
-            "Make sure that ALL of your input data is in the same space and mnc format (i.e., don't mix mnc and nii.gz)")
+                "Make sure that ALL of your input data is in the same space and mnc format (i.e., don't mix mnc and nii.gz)")
             print("I will be converting ALL of your labels to rounded integers to be safe. np.rint(labels).astype(int)")
             label_subset_idx = np.rint(label_subset_idx).astype(int)
 
@@ -574,7 +574,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         IDs = [os.path.basename(os.path.dirname(metric_file)) for metric_file in
                metric_files]  # if ID was not set, we assume that we can generate it here as the last directory of the path to the metric_file
         print(
-        "No IDs were specified, attempting to reconstruct them as the last subdirectory of the input metric files")
+            "No IDs were specified, attempting to reconstruct them as the last subdirectory of the input metric files")
         print(" e.g., " + os.path.basename(os.path.dirname(metric_files[0])))
 
     for idx, ID in enumerate(IDs):
@@ -1161,7 +1161,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
         print("")
     else:
         print(
-        "The index file already exists and I am not going to overwrite it because you didn't tell me to CLOBBER it! (" + seg_idx_fname + ")")
+            "The index file already exists and I am not going to overwrite it because you didn't tell me to CLOBBER it! (" + seg_idx_fname + ")")
 
 
 def sanitize_bvals(bvals, target_bvals=[0, 1000, 2000, 3000]):
