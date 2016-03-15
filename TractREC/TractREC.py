@@ -543,7 +543,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         print("Label numbers were extracted from the first label file")
         print("label_id = 0 was removed")
 
-        label_subset_idx = np.unique(imgLoad(label_files[0])[0])
+        label_subset_idx = np.unique(imgLoad(label_files[0])[0]).astype(int)
         if os.path.splitext(label_files[0])[-1] == ".mnc":
             print("Looks like you are using mnc files.")
             print(
