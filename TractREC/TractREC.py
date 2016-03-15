@@ -319,15 +319,15 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         def __str__(self):
             # defines what is returned when print is called on this class
             template_txt = """
-			label_val: {label_val}
-			len(data): {data_len}
-			volume   : {volume}
-			mean     : {mean}
-			median   : {median}
-			std      : {std}
-			maxx     : {maxx}
-			minn     : {minn}
-			"""
+            label_val: {label_val}
+            len(data): {data_len}
+            volume   : {volume}
+            mean     : {mean}
+            median   : {median}
+            std      : {std}
+            maxx     : {maxx}
+            minn     : {minn}
+            """
             return template_txt.format(label_val=self.label_val, data_len=len(self.data), volume=self.volume,
                                        mean=self.mean, median=self.median, std=self.std, maxx=self.maxx, minn=self.minn)
 
