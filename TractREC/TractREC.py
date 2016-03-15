@@ -299,6 +299,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
 
        e.g.,
          - res=extract_stats_from_masked_image(img_fname,mask_fname)
+         :rtype: object
     """
     import os
     import numpy as np
@@ -491,9 +492,9 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
 
 
 def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=None, label_subset_idx=None,
-                                label_tag="label_", metric='mean', \
+                                label_tag="label_", metric='mean',
                                 thresh_mask_files=None, ROI_mask_files=None, thresh_val=None, max_val=None,
-                                thresh_type=None, erode_vox=None, zfill_num=3, \
+                                thresh_type=None, erode_vox=None, zfill_num=3,
                                 DEBUG_DIR=None, VERBOSE=False,
                                 USE_LABEL_RES=False):  # TODO: extract multiple metrics from list ['mean','median']
 
@@ -552,19 +553,56 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
             label_subset_idx = np.rint(label_subset_idx).astype(int)
 
         label_subset_idx = label_subset_idx[label_subset_idx != 0]
-
-    if label_df is None:  # WHAT? you didn't provide a label to idx matching dataframe??
-        print("label_df dataframe (label index to name mapping) was not defined")
-        print("Generic label names will be calculated from the unique values in the first label file")
-        for idx, label_id in enumerate(label_subset_idx):
-            col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + metric
-            cols.append(col_name)
-        df_4d = pd.DataFrame(columns=cols)
-    else:
-        for idx, label_id in enumerate(label_subset_idx):
-            col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + metric
-            cols.append(col_name)
-        df_4d = pd.DataFrame(columns=cols)
+    if metric is not 'all':
+        if label_df is None:  # WHAT? you didn't provide a label to idx matching dataframe??
+            print("label_df dataframe (label index to name mapping) was not defined")
+            print("Generic label names will be calculated from the unique values in the first label file")
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + metric
+                cols.append(col_name)
+            df_4d = pd.DataFrame(columns=cols)
+        else:
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + metric
+                cols.append(col_name)
+            df_4d = pd.DataFrame(columns=cols)
+    else: #we want all the metrics, so we need to create the columns for all of them
+        if label_df is None:  # WHAT? you didn't provide a label to idx matching dataframe??
+            print("label_df dataframe (label index to name mapping) was not defined")
+            print("Generic label names will be calculated from the unique values in the first label file")
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + "mean"
+                cols.append(col_name)
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + "median"
+                cols.append(col_name)
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + "std"
+                cols.append(col_name)
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + "volume"
+                cols.append(col_name)
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + "vox_count"
+                cols.append(col_name)
+            df_4d = pd.DataFrame(columns=cols)
+        else:
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + "mean"
+                cols.append(col_name)
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + "median"
+                cols.append(col_name)
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + "std"
+                cols.append(col_name)
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + "volume"
+                cols.append(col_name)
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + "vox_count"
+                cols.append(col_name)
+            df_4d = pd.DataFrame(columns=cols)
 
     if DEBUG_DIR is not None:
         create_dir(
@@ -659,10 +697,10 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                     print(" thresh    : " + str(thresh_mask_fname))
                     print(" thresh_val: " + str(thresh_val))
                     print(""),
-                res = extract_stats_from_masked_image(metric_file, label_file, thresh_mask_fname=thresh_mask_fname, \
+                res = extract_stats_from_masked_image(metric_file, label_file, thresh_mask_fname=thresh_mask_fname,
                                                       combined_mask_output_fname=combined_mask_output_fname,
                                                       ROI_mask_fname=ROI_mask_fname, thresh_val=thresh_val,
-                                                      thresh_type=thresh_type, \
+                                                      thresh_type=thresh_type,
                                                       label_subset=label_subset_idx, erode_vox=erode_vox, result='all',
                                                       max_val=max_val, VERBOSE=VERBOSE, USE_LABEL_RES=USE_LABEL_RES)
 
@@ -674,14 +712,22 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 df_4d.loc[idx, 'thresh_val'] = thresh_val  # this is overkill, since it should always be the same
                 df_4d.loc[idx, 'thresh_type'] = thresh_type  # this is overkill, since it should always be the same
                 df_4d.loc[idx, 'ROI_mask'] = ROI_mask_fname
-                if metric is 'mean':
+                if metric is 'all': #TODO give start and stop location and test this
+                    df_4d.loc[idx, 7:7+1*len(label_subset_idx)] = res.mean
+                    df_4d.loc[idx, 7+1*len(label_subset_idx)+1:7+2*len(label_subset_idx)] = res.median
+                    df_4d.loc[idx, 7+2*len(label_subset_idx)+1:7+3*len(label_subset_idx)] = res.std
+                    df_4d.loc[idx, 7+3*len(label_subset_idx)+1:7+4*len(label_subset_idx)] = res.volume
+                    df_4d.loc[idx, 7+4*len(label_subset_idx)+1:7+5*len(label_subset_idx)] = [len(a_idx) for a_idx in res.data]  # gives num vox
+                elif metric is 'mean':
                     df_4d.loc[idx, 7::] = res.mean
                 elif metric is 'median':
                     df_4d.loc[idx, 7::] = res.median
-                elif metric is 'vox_count':
-                    df_4d.loc[idx, 7::] = [len(a_idx) for a_idx in res.data]  # gives num vox
+                elif metric is 'std':
+                    df_4d.loc[idx, 7::] = res.std
                 elif metric is 'volume':
                     df_4d.loc[idx, 7::] = res.volume
+                elif metric is 'vox_count':
+                    df_4d.loc[idx, 7::] = [len(a_idx) for a_idx in res.data]  # gives num vox
                 else:
                     print("Incorrect metric selected.")
                     return
