@@ -529,6 +529,9 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
     import numpy as np
     import pandas as pd
 
+    if ALL_FILES_ORDERED:
+        print("You have set ALL_FILES_ORDERED=True, I will not check your input lists for ordering.")
+
     cols = ['ID', 'metric_file', 'label_file', 'thresh_file', 'thresh_val', 'thresh_type',
             'ROI_mask']  # used to link it to the other measures and to confirm that the masks were used in the correct order so that the values are correct
 
@@ -607,8 +610,8 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
             df_4d = pd.DataFrame(columns=cols)
 
     if DEBUG_DIR is not None:
-        create_dir(
-            DEBUG_DIR)  # this is where the combined_mask_output is going to go so that we can check to see what we actually did to our masks
+        create_dir(DEBUG_DIR)  # this is where the combined_mask_output is 
+        #going to go so that we can check to see what we actually did to our masks
 
     if IDs is None and not(ALL_FILES_ORDERED): #if this was set to True, then we just grab the correct index
         IDs = [os.path.basename(os.path.dirname(metric_file)) for metric_file in metric_files]  # if ID was not set,
@@ -694,10 +697,10 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                     combined_mask_output_fname = os.path.join(DEBUG_DIR, ID + "_corrected_labels.nii.gz")
                 else:
                     combined_mask_output_fname = None
-
-                metric_file = metric_file[0]  # break them out of the list they were stored as
-                label_file = label_file[0]
-
+                if not(ALL_FILES_ORDERED):
+                    metric_file = metric_file[0]  # break them out of the list they were stored as
+                    label_file = label_file[0]
+                
                 if thresh_mask_fname is not None:
                     thresh_mask_fname = thresh_mask_fname[0]
                 if ROI_mask_fname is not None:
