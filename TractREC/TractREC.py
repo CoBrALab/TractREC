@@ -701,10 +701,10 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                     metric_file = metric_file[0]  # break them out of the list they were stored as
                     label_file = label_file[0]
                 
-                if thresh_mask_fname is not None:
-                    thresh_mask_fname = thresh_mask_fname[0]
-                if ROI_mask_fname is not None:
-                    ROI_mask_fname = ROI_mask_fname[0]
+                    if thresh_mask_fname is not None:
+                        thresh_mask_fname = thresh_mask_fname[0]
+                    if ROI_mask_fname is not None:
+                        ROI_mask_fname = ROI_mask_fname[0]
 
                 if VERBOSE:
                     print(" metric    : " + metric_file)
