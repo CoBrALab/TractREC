@@ -73,4 +73,3 @@ df_seg=tr.extract_quantitative_metric(t1divt2_files,label_files,IDs=t1divt2_IDs[
                                       VERBOSE=True)
 
 df_seg.to_csv(HCP_t1divt2_fname)
-

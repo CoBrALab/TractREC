@@ -496,7 +496,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                                 thresh_mask_files=None, ROI_mask_files=None, thresh_val=None, max_val=None,
                                 thresh_type=None, erode_vox=None, zfill_num=3,
                                 DEBUG_DIR=None, VERBOSE=False,
-                                USE_LABEL_RES=False):
+                                USE_LABEL_RES=False, ALL_FILES_ORDERED=False):
 
     """
     Extracts voxel-wise data for given set of matched label_files and metric files. Returns pandas dataframe of results
@@ -519,6 +519,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         - DEBUG_DIR         - directory to dump new thresholded and interpolated label files to
         - VERBOSE           - verbose reporting or not (default: False)
         - USE_LABEL_RES     - otherwise uses the res of the img_fname (default: False)
+        - ALL_FILES_ORDERED - set to True if you know that all of your input lists of files are matched correctly
 
     OUTPUT:
         - df_4d             - pandas dataframe of results
@@ -538,7 +539,6 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         label_files = [label_files]
     if isinstance(IDs, basestring):
         IDs = [IDs]
-
     if label_subset_idx is None:  # you didn't define your label indices, so we go get them for you from the 1st label file
         print("label_subset_idx was not defined")
         print("Label numbers were extracted from the first label file")
@@ -553,6 +553,8 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
             label_subset_idx = np.rint(label_subset_idx).astype(int)
 
         label_subset_idx = label_subset_idx[label_subset_idx != 0]
+    elif isinstance(label_subset_idx,int):
+        label_subset_idx = [label_subset_idx] #change to a list if it was only a single integer
     if metric is not 'all':
         if label_df is None:  # WHAT? you didn't provide a label to idx matching dataframe??
             print("label_df dataframe (label index to name mapping) was not defined")
@@ -608,12 +610,14 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         create_dir(
             DEBUG_DIR)  # this is where the combined_mask_output is going to go so that we can check to see what we actually did to our masks
 
-    if IDs is None:  # TODO: remove this IDs setup and just assume that they put the files in the correct order
-        IDs = [os.path.basename(os.path.dirname(metric_file)) for metric_file in
-               metric_files]  # if ID was not set, we assume that we can generate it here as the last directory of the path to the metric_file
+    if IDs is None and not(ALL_FILES_ORDERED): #if this was set to True, then we just grab the correct index
+        IDs = [os.path.basename(os.path.dirname(metric_file)) for metric_file in metric_files]  # if ID was not set,
+        # we assume that we can generate it here as the last directory of the path to the metric_file
         print(
             "No IDs were specified, attempting to reconstruct them as the last subdirectory of the input metric files")
         print(" e.g., " + os.path.basename(os.path.dirname(metric_files[0])))
+    else: # the user knows what they are doing, we will not use IDs to lookup the correct corresponding files
+        IDs = [os.path.basename(metric_file) for metric_file in metric_files]
 
     for idx, ID in enumerate(IDs):
         DATA_EXISTS = True
@@ -623,30 +627,34 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
             print(ID)
         else:
             print(ID),
-        metric_file = [s for s in metric_files if ID in s]  # make sure our label file is in the list that was passed
-        label_file = [s for s in label_files if ID in s]  # make sure our label file is in the list that was passed
-        if len(metric_file) > 1:
-            print("")
-            print "OH SHIT, too many metric files. This should not happen!"
-        elif len(metric_file) == 0:
-            print("")
-            print "OH SHIT, no matching metric file for: " + ID
-            DATA_EXISTS = False
+        if not(ALL_FILES_ORDERED):
+            metric_file = [s for s in metric_files if ID in s]  # make sure our label file is in the list that was passed
+            label_file = [s for s in label_files if ID in s]  # make sure our label file is in the list that was passed
+            if len(metric_file) > 1:
+                print("")
+                print "OH SHIT, too many metric files. This should not happen!"
+            elif len(metric_file) == 0:
+                print("")
+                print "OH SHIT, no matching metric file for: " + ID
+                DATA_EXISTS = False
 
-        if len(label_file) > 1:
-            print("")
-            print "OH SHIT, too many label files. This should not happen!"
-        elif len(label_file) == 0:
-            print("")
-            print "OH SHIT, no matching label file for: " + ID
-            DATA_EXISTS = False
+            if len(label_file) > 1:
+                print("")
+                print "OH SHIT, too many label files. This should not happen!"
+            elif len(label_file) == 0:
+                print("")
+                print "OH SHIT, no matching label file for: " + ID
+                DATA_EXISTS = False
+        else:
+            metric_file = metric_files[idx]
+            label_file = label_files[idx]
 
         if thresh_mask_files is not None:
             if len(thresh_mask_files) == 1:  # if we only provide one mask, we use this for everyone
                 thresh_mask_fname = thresh_mask_files
-            else:
-                thresh_mask_fname = [s for s in thresh_mask_files if
-                                     ID in s]  # make sure our label file is in the list that was passed
+            elif len(thresh_mask_files) > 1 and not(ALL_FILES_ORDERED):
+                thresh_mask_fname = [s for s in thresh_mask_files if ID in s]  # make sure our label file
+                                                                                # is in the list that was passed
                 if len(thresh_mask_fname) > 1:
                     print("")
                     print "OH SHIT, too many threshold mask files. This should not happen!"
@@ -655,13 +663,15 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                     print("")
                     print "OH SHIT, no matching threshold mask file for: " + ID
                     DATA_EXISTS = False
+            else:
+                thresh_mask_fname = thresh_mask_files[idx]
         else:
             thresh_mask_fname = None
 
         if ROI_mask_files is not None:
             if len(ROI_mask_files) == 1:  # if we only provide one mask, we use this for everyone
                 ROI_mask_fname = ROI_mask_files
-            else:
+            elif len(ROI_mask_files) > 1 and not(ALL_FILES_ORDERED):
                 ROI_mask_fname = [s for s in ROI_mask_files if
                                   ID in s]  # make sure our label file is in the list that was passed
                 if len(ROI_mask_fname) > 1:
@@ -670,6 +680,8 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 elif len(ROI_mask_fname) == 0:
                     print "OH SHIT, no matching ROI mask file for: " + ID
                     DATA_EXISTS = False
+            else:
+                ROI_mask_fname = ROI_mask_files[idx]
         else:
             ROI_mask_fname = None
 
@@ -712,7 +724,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 df_4d.loc[idx, 'thresh_val'] = thresh_val  # this is overkill, since it should always be the same
                 df_4d.loc[idx, 'thresh_type'] = thresh_type  # this is overkill, since it should always be the same
                 df_4d.loc[idx, 'ROI_mask'] = ROI_mask_fname
-                if metric is 'all': #TODO give start and stop location and test this
+                if metric is 'all':
                     df_4d.loc[idx, 7:7+1*len(label_subset_idx)] = res.mean
                     df_4d.loc[idx, 7+1*len(label_subset_idx):7+2*len(label_subset_idx)] = res.median
                     df_4d.loc[idx, 7+2*len(label_subset_idx):7+3*len(label_subset_idx)] = res.std
