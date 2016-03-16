@@ -260,9 +260,9 @@ def affine1_to_affine2(aff1, aff2):
 
 
 def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=None, combined_mask_output_fname=None,
-                                    ROI_mask_fname=None, thresh_val=None, \
+                                    ROI_mask_fname=None, thresh_val=None,
                                     thresh_type=None, result='all', label_subset=None, SKIP_ZERO_LABEL=True,
-                                    nonzero_stats=True, \
+                                    nonzero_stats=True,
                                     erode_vox=None, min_val=None, max_val=None, VERBOSE=False, USE_LABEL_RES=False):
     """
     XXX - THIS SHOULD BE CHECKED TO MAKE SURE THAT IT WORKS WITH ALL INPUTS - ASSUMPTIONS ABOUT TRANSFORMS WERE MADE XXX
@@ -492,11 +492,11 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
 
 
 def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=None, label_subset_idx=None,
-                                label_tag="label_", metric='mean',
+                                label_tag="label_", metric='all',
                                 thresh_mask_files=None, ROI_mask_files=None, thresh_val=None, max_val=None,
                                 thresh_type=None, erode_vox=None, zfill_num=3,
                                 DEBUG_DIR=None, VERBOSE=False,
-                                USE_LABEL_RES=False):  # TODO: extract multiple metrics from list ['mean','median']
+                                USE_LABEL_RES=False):
 
     """
     Extracts voxel-wise data for given set of matched label_files and metric files. Returns pandas dataframe of results
@@ -508,7 +508,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         - label_df          - pandas dataframe of label index (index) and description (label_id)
         - label_subset_idx  - list of label indices that you want to extract data from [10, 200, 30]
         - label_tag         - string that will precede the label description in the column header
-        - metric            - metric to extract {'mean','median','vox_count', 'volume'}
+        - metric            - metric to extract {'all','mean','median','std','volume','vox_count'}
         - thresh_mask_files - list of files for additional thresholding (again, same restrictions as label_files)
         - ROI_mask_files    - binary mask file(s) denoting ROI for extraction =1
         - thresh_val        - value for thresholding
@@ -714,10 +714,10 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 df_4d.loc[idx, 'ROI_mask'] = ROI_mask_fname
                 if metric is 'all': #TODO give start and stop location and test this
                     df_4d.loc[idx, 7:7+1*len(label_subset_idx)] = res.mean
-                    df_4d.loc[idx, 7+1*len(label_subset_idx)+1:7+2*len(label_subset_idx)] = res.median
-                    df_4d.loc[idx, 7+2*len(label_subset_idx)+1:7+3*len(label_subset_idx)] = res.std
-                    df_4d.loc[idx, 7+3*len(label_subset_idx)+1:7+4*len(label_subset_idx)] = res.volume
-                    df_4d.loc[idx, 7+4*len(label_subset_idx)+1:7+5*len(label_subset_idx)] = [len(a_idx) for a_idx in res.data]  # gives num vox
+                    df_4d.loc[idx, 7+1*len(label_subset_idx):7+2*len(label_subset_idx)] = res.median
+                    df_4d.loc[idx, 7+2*len(label_subset_idx):7+3*len(label_subset_idx)] = res.std
+                    df_4d.loc[idx, 7+3*len(label_subset_idx):7+4*len(label_subset_idx)] = res.volume
+                    df_4d.loc[idx, 7+4*len(label_subset_idx):7+5*len(label_subset_idx)] = [len(a_idx) for a_idx in res.data]  # gives num vox
                 elif metric is 'mean':
                     df_4d.loc[idx, 7::] = res.mean
                 elif metric is 'median':
