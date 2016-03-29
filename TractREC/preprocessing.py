@@ -178,6 +178,7 @@ def DKE_by_slice(data,gtab,slices='all'):
     return out_data
     
 def DKE(data_fname,bvals_fname,bvecs_fname,bval_max_cutoff=3200,out_dir=None,slices='all',SMTH_DEN=None,IN_MEM=False):
+
     """
     DKE with dipy (dipy.__version__>=0.10.0), outputs MK, AK, and RK without and (potentially) with denoising
     SMTH_DEN can take multiple arguments in list format ['smth','nlmeans'] - currently always does DKE with native data as well (XXX could add this as 'natv')
@@ -196,7 +197,7 @@ def DKE(data_fname,bvals_fname,bvecs_fname,bval_max_cutoff=3200,out_dir=None,sli
     
     out_fname_base=os.path.join(out_dir,"DKE_")
     print("Selecting appropriate data and writing to disk")
-    selected_data_fname,bvals,bvecs = select_and_write_data_bvals_bvecs(data_fname,bvals_fname,bvecs_fname,out_dir=out_dir,bval_max_cutoff=3500,IN_MEM=IN_MEM)
+    selected_data_fname,bvals,bvecs = select_and_write_data_bvals_bvecs(data_fname,bvals_fname,bvecs_fname,out_dir=out_dir,bval_max_cutoff=bval_max_cutoff,IN_MEM=IN_MEM)
     data,aff=imgLoad(selected_data_fname)
     bvals=sanitize_bvals(bvals)
     gtab=gradient_table(bvals, bvecs)
