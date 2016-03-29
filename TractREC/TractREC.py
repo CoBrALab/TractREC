@@ -264,10 +264,11 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
                                     thresh_type=None, result='all', label_subset=None, SKIP_ZERO_LABEL=True,
                                     nonzero_stats=True,
                                     erode_vox=None, min_val=None, max_val=None, VERBOSE=False, USE_LABEL_RES=False):
-    """
-    XXX - THIS SHOULD BE CHECKED TO MAKE SURE THAT IT WORKS WITH ALL INPUTS - ASSUMPTIONS ABOUT TRANSFORMS WERE MADE XXX
-    XXX - works for NII and MNC, but NOT tested for combining the two of them XXX
+    #TODO - THIS SHOULD BE CHECKED TO MAKE SURE THAT IT WORKS WITH ALL INPUTS - ASSUMPTIONS ABOUT TRANSFORMS WERE MADE XXX
+    #TODO - works for NII and MNC, but NOT tested for combining the two of them XXX
+    #TODO - Add an additional flag to remove 0s that are present in the metric file from analysis
 
+    """
     Extract values from img at mask location
     Images do not need to be the same resolution, though this is highly preferred
         - resampling taken care of with nilearn tools
@@ -639,6 +640,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
             elif len(metric_file) == 0:
                 print("")
                 print "OH SHIT, no matching metric file for: " + ID
+                print("This subject has not been processed")
                 DATA_EXISTS = False
 
             if len(label_file) > 1:
@@ -647,6 +649,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
             elif len(label_file) == 0:
                 print("")
                 print "OH SHIT, no matching label file for: " + ID
+                print("This subject has not been processed")
                 DATA_EXISTS = False
         else:
             metric_file = metric_files[idx]
