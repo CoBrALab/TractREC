@@ -349,6 +349,39 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
                                 description="Diffusion kurtosis estimation with dipy",SUBMIT=SUBMIT)
         print("")
 
+def run_amico_noddi_dipy(subject_root_dir,bvals_fnames,bvecs_fnames,out_root_dir,subject_dirs=None,b0_thresh=0, bStep=[0,1000,2000,3000]):
+    #takes about 8GB of memory
+    #currently requires a module load anaconda and spams
+    import os
+    import amico
+    import TractREC as tr
+    import sys
+    
+    #spams required by amico, along with specific numpy version (1.10 has a fortran issue that crops up here)
+    sys.path.append('/home/cic/stechr/Documents/code/spams-python') #EW! TODO: make me permanent
+
+    scheme_fname='bvecs_bvals_sanitised.scheme'    
+    
+    if subject_dirs is None:
+        subject_dirs=['100307'] #TODO, create a list of subjects from the subject_root_dir
+        #subject_dirs=tr.natural_sort(os.listdir(subject_root_dir))
+    
+    amico.core.setup()    
+    for subject_dir in subject_dirs:    
+        ae=amico.Evaluation(subject_root_dir,subject_dir)
+        amico.util.fsl2scheme(bvals_fname, bvecs_fname,scheme_fname,bStep)
+        #ae.load_data(dwi_filename=dwi_fname,scheme_filename=scheme_fname,mask_filename=mask_fname,b0_thr=bo_thresh) #loading takes tabout 4-5 mins (HCP), and about 8gb
+        ae.load_data(dwi_filename='data.nii.gz',scheme_filename='sanitised.scheme',mask_filename='nodif_brain_mask.nii.gz',b0_thr=0)
+        ae.set_model("NODDI")
+        ae.generate_kernels() #single core only, 2.5mins (HCP), apparently only needs to be done once if all data was acquired the same way (loading fits to the bvecs) - not impractical to do it every time, since I don't see a way to save it
+        ae.load_kernels() #resamples the LUT for this subject - looks to use a lot of mem...and will use available cores - 2.5mins on 8
+        ae.fit() #numpy version 1.10.0 will not work, uses all cores and about 8GB for HCP data
+        ae.save_results()
+        #move to proper output directory so that we keep with our processing stream
+        
+        
+    
+    
 # XXX stuff for testing XXX
 #DKE('/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/data.nii.gz','/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvals',\
 #    '/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvecs',\
@@ -356,3 +389,14 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
 
 #import os
 #print os.path.realpath(__file__)
+
+"""
+import amico
+ae=amico.Evaluation('/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi','100307')
+ae.load_data(dwi_filename='data.nii.gz',scheme_filename='sanitised.scheme',mask_filename='nodif_brain_mask.nii.gz',b0_thr=0)
+ae.set_model("NODDI")
+ae.generate_kernels() #single core only, 2.5mins (HCP), apparently only needs to be done once if all data was acquired the same way (loading fits to the bvecs) - not impractical to do it every time, since I don't see a way to save it
+ae.load_kernels() #resamples the LUT for this subject - looks to use a lot of mem...and will use available cores (though not fully) - 2.5mins
+ae.fit()
+ae.save_results()
+"""
