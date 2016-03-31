@@ -349,7 +349,7 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
                                 description="Diffusion kurtosis estimation with dipy",SUBMIT=SUBMIT)
         print("")
 
-def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=0, bStep=[0,1000,2000,3000]):
+def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=0, bStep=[0,1000,2000,3000],CLOBBER=False,SUBMIT=False):
     #No... requires closer to 36GB for the HCP data
     #when requesting cores, select 24 and take the whole memory (time it...)
     #currently requires the compiled version of spams that I have installed locally
@@ -387,6 +387,7 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
         bvecs_fname=os.path.join(subject_root_dir,ID,"bvecs")
         scheme_fname=os.path.join(subject_root_dir,ID,"bvals_bvecs_sanitised.scheme")
         mask_fname=os.path.join(subject_root_dir,ID,"nodif_brain_mask.nii.gz")
+        out_dir=os.path.join(subject_root_dir,ID) #hopefully this will change
         
         #bStep=[0,1000,2000,3000]
         #b0_thr=0
@@ -406,7 +407,17 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
         code.append("ae.save_results()")
         
         #return code
-        py_sub_full_fname=create_python_exec(out_dir=os.path.join(subject_root_dir,ID),code=code,name='NOD_'+ID)
+        py_sub_full_fname=create_python_exec(out_dir=out_dir,code=code,name='NODDI_'+ID)
+        if CLOBBER:
+            print("Creating submission files and following your instructions for submission to que. (CLOBBER=True)"),
+            print(" (SUBMIT=" + str(SUBMIT)+")")
+            submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='NOD_'+ID,nthreads=24,mem=1.5,outdir=out_dir,
+                            description="NODDI estimation with AMICO",SUBMIT=SUBMIT)
+        else:
+            print("Creating submission files and following your instructions for submission to que. (CLOBBER=False)")
+            print(" (SUBMIT=" + str(SUBMIT)+")")
+            submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='NOD_'+ID,nthreads=24,mem=1.5,outdir=out_dir,
+                            description="NODDI estimation with AMICO",SUBMIT=SUBMIT)
         print(py_sub_full_fname)
     
     
@@ -432,5 +443,5 @@ ae.generate_kernels() #single core only, 2.5mins (HCP), apparently only needs to
 ae.load_kernels() #resamples the LUT for this subject - looks to use a lot of mem...and will use available cores (though not fully) - 2.5mins
 ae.fit()
 ae.save_results()
-
+check this job id: 459901
 """
