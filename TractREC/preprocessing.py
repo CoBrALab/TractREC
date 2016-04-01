@@ -358,7 +358,7 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
     import sys
     
     spams_path='/home/cic/stechr/Documents/code/spams-python'
-    
+    #working_amico_path='/home/cic/stechr/Documents/code/amico_cjs/AMICO/python/amico'
     caller_path=os.path.dirname(os.path.abspath(__file__)) #path to this script, so we can add it to a sys.addpath statement
     #caller_path="caller_path_test"
     #spams required by amico, along with specific numpy version (1.10 has a fortran issue that crops up here)
@@ -387,17 +387,18 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
         bvecs_fname=os.path.join(subject_root_dir,ID,"bvecs")
         scheme_fname=os.path.join(subject_root_dir,ID,"bvals_bvecs_sanitised.scheme")
         mask_fname=os.path.join(subject_root_dir,ID,"nodif_brain_mask.nii.gz")
-        out_dir=os.path.join(subject_root_dir,ID) #hopefully this will change
+        out_dir=os.path.join(out_root_dir,ID) #hopefully this will change
         
         #bStep=[0,1000,2000,3000]
         #b0_thr=0
         model="NODDI"
         
-        code=["#!/usr/bin/python","","import sys","sys.path.append('{0}')".format(caller_path),"sys.path.append('{0}')".format(spams_path),"import preprocessing as pr","import spams","import amico"]
+        code=["#!/usr/bin/python","","import sys","sys.path.append('{0}')".format(caller_path),"sys.path.append('{0}')".format(spams_path),"import spams","import amico"]
         code.append("import spams" )
         code.append("")
+        code.append("print amico.__file__")
         code.append("amico.core.setup()")
-        code.append("ae=amico.Evaluation('{subject_root_dir}','{ID}')".format(subject_root_dir=subject_root_dir,ID=ID))
+        code.append("ae=amico.Evaluation('{subject_root_dir}','{ID}',output_path='{output_dir}')".format(subject_root_dir=subject_root_dir,ID=ID,output_dir=out_dir))
         code.append("amico.util.fsl2scheme('{bvals_fname}', '{bvecs_fname}','{scheme_fname}',{bStep})".format(bvals_fname=bvals_fname, bvecs_fname=bvecs_fname,scheme_fname=scheme_fname,bStep=bStep))
         code.append("ae.load_data(dwi_filename='{dwi_fname}',scheme_filename='{scheme_fname}',mask_filename='{mask_fname}',b0_thr={b0_thr})".format(dwi_fname=dwi_fname,scheme_fname=scheme_fname,mask_fname=mask_fname,b0_thr=b0_thr))
         code.append("ae.set_model('{model}')".format(model=model))

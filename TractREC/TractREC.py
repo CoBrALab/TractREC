@@ -904,7 +904,7 @@ def submit_via_qsub(template_text=None, code="# NO CODE HAS BEEN ENTERED #", \
         #$ -o {OUTDIR} 	        #set output directory so that .o files end up here
         #$ -j yes		        #merge .e and .o files into one
         
-        export MKL_NUM_THREADS=1 #these three are required to make python play nicely a
+        export MKL_NUM_THREADS=1 #to make some python threaded code play well, all =1
         export NUMEXPR_NUM_THREADS=1
         export OMP_NUM_THREADS=1
 
@@ -933,9 +933,9 @@ def submit_via_qsub(template_text=None, code="# NO CODE HAS BEEN ENTERED #", \
 #$ -o {OUTDIR} 	        #set output directory so that .o files end up here
 #$ -j yes		        #merge .e and .o files into one
 
-export MKL_NUM_THREADS={NTHREADS} #these three are required to make python play nicely a
-export NUMEXPR_NUM_THREADS={NTHREADS}
-export OMP_NUM_THREADS={NTHREADS}
+export MKL_NUM_THREADS=2 #slight overs-subscription to cores for some python code
+export NUMEXPR_NUM_THREADS=2
+export OMP_NUM_THREADS=2
 
 {CODE}
 """
