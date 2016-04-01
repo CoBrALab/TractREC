@@ -278,7 +278,7 @@ def create_python_exec(out_dir,code=["#!/usr/bin/python",""],name="CJS_py"):
     os.chmod(subFullName,st.st_mode | stat.S_IEXEC) #make executable
     return subFullName
     
-def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,out_root_dir,IDs,bval_max_cutoff=3200,slices='all',SMTH_DEN=None,IN_MEM=True,SUBMIT=False,CLOBBER=False):
+def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,out_root_dir,IDs,bval_max_cutoff=3200,slices='all',nthreads=4,mem=3.75,SMTH_DEN=None,IN_MEM=True,SUBMIT=False,CLOBBER=False):
     """
     Creates .py and .sub submission files for submission of DKE to SGE, submits if SUBMIT=True
     Pass matched lists of data filenames, bval filenames, and bvec filenames, along with a root directory for the output
@@ -340,16 +340,16 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
             if CLOBBER:
                 print("Creating submission files and following your instructions for submission to que. (CLOBBER=True)"),
                 print(" (SUBMIT=" + str(SUBMIT)+")")
-                submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=4,mem=3.75,outdir=out_dir,\
+                submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=nthreads,mem=mem,outdir=out_dir,\
                                 description="Diffusion kurtosis estimation with dipy",SUBMIT=SUBMIT)
             else:
                 print("Creating submission files and following your instructions for submission to que. (CLOBBER=False)")
                 print(" (SUBMIT=" + str(SUBMIT)+")")
-                submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=4,mem=3.75,outdir=out_dir,\
+                submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='DKE_'+ID,nthreads=nthreads,mem=mem,outdir=out_dir,\
                                 description="Diffusion kurtosis estimation with dipy",SUBMIT=SUBMIT)
         print("")
 
-def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=0, bStep=[0,1000,2000,3000],CLOBBER=False,SUBMIT=False):
+def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=0, bStep=[0,1000,2000,3000],nthreads=8,mem=2.5,CLOBBER=False,SUBMIT=False):
     #No... requires closer to 36GB for the HCP data
     #when requesting cores, select 24 and take the whole memory (time it...)
     #currently requires the compiled version of spams that I have installed locally
@@ -411,12 +411,12 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
         if CLOBBER:
             print("Creating submission files and following your instructions for submission to que. (CLOBBER=True)"),
             print(" (SUBMIT=" + str(SUBMIT)+")")
-            submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='NOD_'+ID,nthreads=24,mem=1.5,outdir=out_dir,
+            submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='NOD_'+ID,nthreads=nthreads,mem=mem,outdir=out_dir,
                             description="NODDI estimation with AMICO",SUBMIT=SUBMIT)
         else:
             print("Creating submission files and following your instructions for submission to que. (CLOBBER=False)")
             print(" (SUBMIT=" + str(SUBMIT)+")")
-            submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='NOD_'+ID,nthreads=24,mem=1.5,outdir=out_dir,
+            submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='NOD_'+ID,nthreads=nthreads,mem=mem,outdir=out_dir,
                             description="NODDI estimation with AMICO",SUBMIT=SUBMIT)
         print(py_sub_full_fname)
     
