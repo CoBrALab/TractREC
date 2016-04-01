@@ -354,7 +354,7 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
     #when requesting cores, select 24 and take the whole memory (time it...)
     #currently requires the compiled version of spams that I have installed locally
     import os
-    import amico
+    #import amico
     import sys
     
     spams_path='/home/cic/stechr/Documents/code/spams-python'
@@ -368,7 +368,7 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
         subject_dirs=['100307'] #TODO, create a list of subjects from the subject_root_dir
         #subject_dirs=tr.natural_sort(os.listdir(subject_root_dir))
     
-    amico.core.setup()    
+    #amico.core.setup()    
     for ID in subject_dirs:    #ID is the subdirectory off of subject_root_dir that contains each subject
         """
         ae=amico.Evaluation(subject_root_dir,ID)       
@@ -394,7 +394,7 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
         model="NODDI"
         
         code=["#!/usr/bin/python","","import sys","sys.path.append('{0}')".format(caller_path),"sys.path.append('{0}')".format(spams_path),"import preprocessing as pr","import spams","import amico"]
-        code.append("import spams")
+        code.append("import spams" )
         code.append("")
         code.append("amico.core.setup()")
         code.append("ae=amico.Evaluation('{subject_root_dir}','{ID}')".format(subject_root_dir=subject_root_dir,ID=ID))
@@ -407,7 +407,7 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
         code.append("ae.save_results()")
         
         #return code
-        py_sub_full_fname=create_python_exec(out_dir=out_dir,code=code,name='NODDI_'+ID)
+        py_sub_full_fname=create_python_exec(out_dir=out_dir,code=code,name='NOD_'+ID)
         if CLOBBER:
             print("Creating submission files and following your instructions for submission to que. (CLOBBER=True)"),
             print(" (SUBMIT=" + str(SUBMIT)+")")
