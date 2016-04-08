@@ -903,6 +903,11 @@ def submit_via_qsub(template_text=None, code="# NO CODE HAS BEEN ENTERED #", \
         #$ -wd {OUTDIR} 	    #set working directory so that .o files end up here (maybe superseded?)
         #$ -o {OUTDIR} 	        #set output directory so that .o files end up here
         #$ -j yes		        #merge .e and .o files into one
+        
+        export MKL_NUM_THREADS=1 #to make some python threaded code play well, all =1
+        export NUMEXPR_NUM_THREADS=1
+        export OMP_NUM_THREADS=1
+
         {CODE}
         \\\"""
     """
@@ -927,6 +932,10 @@ def submit_via_qsub(template_text=None, code="# NO CODE HAS BEEN ENTERED #", \
 #$ -wd {OUTDIR} 	    #set working directory so that .o files end up here (maybe superseded?)
 #$ -o {OUTDIR} 	        #set output directory so that .o files end up here
 #$ -j yes		        #merge .e and .o files into one
+
+export MKL_NUM_THREADS=1 #to make some python threaded code play well, all =1
+export NUMEXPR_NUM_THREADS=1
+export OMP_NUM_THREADS=1
 
 {CODE}
 """
