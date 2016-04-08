@@ -380,7 +380,59 @@ def run_amico_noddi_dipy(subject_root_dir,bvals_fnames,bvecs_fnames,out_root_dir
         #move to proper output directory so that we keep with our processing stream
         
         
-    
+def interp_discrete_hist_peaks(input_fname, output_fname=None, value_count_cutoff=50):
+    """
+    Detects peaks in histogram of input image where the number of voxels is greater than value_count_cutoff, smooths
+    them with 3D linear interpolation and writes the file with extension _smth_peaks.nii.gz
+
+    :param input_fname: full path and fname to input image file
+    :param output_fname: full path and fname to output image file, None for input location and _smooth_peaks.nii.gz
+    :param value_count_cutoff: voxel count, where greater than this is considered a peak
+    :return:
+    """
+    from scipy import ndimage, interpolate
+    import nibabel as nb
+    import numpy as np
+    import os
+
+    if output_fname is None:
+        output_fname = os.path.join(os.path.dirname(input_fname),os.path.basename(input_fname).split(".")[0]+
+                                    "_smth_peaks.nii.gz")
+    #structure = ndimage.morphology.generate_binary_structure(3, 3)
+    #structure[1, 1, 1] = 0
+
+    img = nb.load(input_fname)
+    d3d = img.get_data()
+    #d3d_out = np.zeros_like(d3d)
+    d = np.ravel(d3d)
+
+    hist, bin_edges = np.histogram(d,bins=len(np.unique(d))) #histogram for each value
+    #plt.figure(), plt.plot(hist[1:0])  # cut at least the first, maybe the last?, since they represent 0 and 1 and have a lot of vals
+
+    #define the bin edges (uncessary because we should have one value per bin...
+    left = bin_edges[np.where(hist > value_count_cutoff)]
+    right = bin_edges[np.add(np.where(hist > value_count_cutoff), 1)][0]
+
+    for idx, mybin in enumerate(left):
+        vox_vals = np.unique(d[np.logical_and(d >= left[idx], d <= right[idx])])
+
+        # should only be one value, but loop over it just in case...
+        # loop across vox_vals
+        for vox_val in vox_vals:
+            d3d[d3d == vox_val]=np.nan
+
+    valid_mask = ~np.isnan(d3d)
+    coords = np.array(np.nonzero(valid_mask)).T
+    values = d3d[valid_mask]
+    it = interpolate.LinearNDInterpolator(coords,values,fill_value=np.nan)
+    filled = it(list(np.ndindex(d3d.shape))).reshape(d3d.shape)
+
+    #d3d_out = ndimage.convolve(d3d,structure)
+    # calculate the mean of all non-equal neighbouring voxels to re-calculate this mean
+    # what do I do when the neighbour is the same as vox_val?
+
+    return filled
+
     
 # XXX stuff for testing XXX
 #DKE('/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/data.nii.gz','/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi/100307/bvals',\
