@@ -435,6 +435,7 @@ def interp_discrete_hist_peaks(input_fname, output_fname=None, value_count_cutof
     import nibabel as nb
     import numpy as np
     import os
+    import matplotlib.pyplot as plt
 
     if output_fname is None:
         output_fname = os.path.join(os.path.dirname(input_fname),os.path.basename(input_fname).split(".")[0]+
@@ -448,19 +449,20 @@ def interp_discrete_hist_peaks(input_fname, output_fname=None, value_count_cutof
     d = np.ravel(d3d)
 
     hist, bin_edges = np.histogram(d,bins=len(np.unique(d))) #histogram for each value
-    #plt.figure(), plt.plot(hist[1:0])  # cut at least the first, maybe the last?, since they represent 0 and 1 and have a lot of vals
+    plt.figure(), plt.plot(hist[1:])  # cut at least the first, maybe the last?, since they represent 0 and 1 and have a lot of vals
 
     #define the bin edges (uncessary because we should have one value per bin...
-    left = bin_edges[np.where(hist > value_count_cutoff)]
-    right = bin_edges[np.add(np.where(hist > value_count_cutoff), 1)][0]
+    left = bin_edges[np.where(hist > value_count_cutoff)][1:] #skip zero
+    right = bin_edges[np.add(np.where(hist > value_count_cutoff), 1)][0][1:] #skip zero
 
     for idx, mybin in enumerate(left):
-        vox_vals = np.unique(d[np.logical_and(d >= left[idx], d <= right[idx])])
-
+        #vox_vals = np.unique(d[np.logical_and(d >= left[idx], d <= right[idx])])
+        print mybin
         # should only be one value, but loop over it just in case...
         # loop across vox_vals
-        for vox_val in vox_vals:
-            d3d[d3d == vox_val]=np.nan
+        #for vox_val in vox_vals:
+        d3d[d3d == mybin]=np.nan
+        # TODO: could create the neighbourhood by hand and calc the fit here?
 
     valid_mask = ~np.isnan(d3d)
     coords = np.array(np.nonzero(valid_mask)).T
@@ -472,7 +474,7 @@ def interp_discrete_hist_peaks(input_fname, output_fname=None, value_count_cutof
     # calculate the mean of all non-equal neighbouring voxels to re-calculate this mean
     # what do I do when the neighbour is the same as vox_val?
 
-    return filled
+    return d,hist,bin_edges,filled
 
 
 # XXX stuff for testing XXX
