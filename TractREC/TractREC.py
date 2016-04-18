@@ -491,13 +491,34 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
     elif result == 'max':
         return results.maxx
 
+def extract_label_volume(label_files,IDs=None, label_df=None,
+                         label_subset_idx=None, label_tag="label_",
+                         thresh_mask_files=None, ROI_mask_files=None,
+                         thresh_val=None, max_val=None,thresh_type=None,
+                         zfill_num=3,VERBOSE=False):
+    # wrapper for extract_quantitative metric to calculate volume from label files
+    df = extract_quantitative_metric(label_files, label_files, 
+                                     IDs=IDs, 
+                                     label_df=label_df, 
+                                     label_subset_idx=label_subset_idx,
+                                     label_tag=label_tag, metric='volume',
+                                     thresh_mask_files=thresh_mask_files, 
+                                     ROI_mask_files=ROI_mask_files, 
+                                     thresh_val=thresh_val, 
+                                     max_val=max_val,
+                                     thresh_type=thresh_type, 
+                                     erode_vox=None, zfill_num=3,
+                                     DEBUG_DIR=None, VERBOSE=False,
+                                     USE_LABEL_RES=True, ALL_FILES_ORDERED=True)
+    return df
 
 def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=None, label_subset_idx=None,
                                 label_tag="label_", metric='all',
                                 thresh_mask_files=None, ROI_mask_files=None, thresh_val=None, max_val=None,
                                 thresh_type=None, erode_vox=None, zfill_num=3,
                                 DEBUG_DIR=None, VERBOSE=False,
-                                USE_LABEL_RES=False, ALL_FILES_ORDERED=False):
+                                USE_LABEL_RES=False, ALL_FILES_ORDERED=False,
+                                n_jobs=1):
 
     """
     Extracts voxel-wise data for given set of matched label_files and metric files. Returns pandas dataframe of results
@@ -529,6 +550,10 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
     import os
     import numpy as np
     import pandas as pd
+    from joblib import Parallel, delayed    
+    
+    if n_jobs<1:
+        n_jobs=1
 
     if ALL_FILES_ORDERED:
         print("You have set ALL_FILES_ORDERED=True, I will not check your input lists for ordering.")
@@ -620,7 +645,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         print(
             "No IDs were specified, attempting to reconstruct them as the last subdirectory of the input metric files")
         print(" e.g., " + os.path.basename(os.path.dirname(metric_files[0])))
-    else: # the user knows what they are doing, we will not use IDs to lookup the correct corresponding files
+    elif IDs is None and ALL_FILES_ORDERED: # the user knows what they are doing, we will not use IDs to lookup the correct corresponding files
         IDs = [os.path.basename(metric_file) for metric_file in metric_files]
 
     for idx, ID in enumerate(IDs):
