@@ -550,8 +550,10 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
     import os
     import numpy as np
     import pandas as pd
-    from joblib import Parallel, delayed    
-    
+    from joblib import Parallel, delayed
+
+    USE_SINGLE_LABEL_FILE=False
+
     if n_jobs<1:
         n_jobs=1
 
@@ -566,6 +568,8 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         metric_files = [metric_files]
     if isinstance(label_files, basestring):
         label_files = [label_files]
+    if len(label_files) == 1:
+        USE_SINGLE_LABEL_FILE = True #if there is only one, then we assume that all files are registered and we just need the single label file
     if isinstance(IDs, basestring):
         IDs = [IDs]
     if label_subset_idx is None:  # you didn't define your label indices, so we go get them for you from the 1st label file
@@ -676,10 +680,12 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 print "OH SHIT, no matching label file for: " + ID
                 print("This subject has not been processed")
                 DATA_EXISTS = False
-        else:
+        else: #files should already be ordered
             metric_file = metric_files[idx]
-            label_file = label_files[idx]
-
+            if not(USE_SINGLE_LABEL_FILE):
+                label_file = label_files[idx]
+            else:
+                label_file = label_files[0]
         if thresh_mask_files is not None:
             if len(thresh_mask_files) == 1:  # if we only provide one mask, we use this for everyone
                 thresh_mask_fname = thresh_mask_files
