@@ -537,7 +537,9 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         - label_df          - pandas dataframe of label index (index) and description (label_id)
         - label_subset_idx  - list of label indices that you want to extract data from [10, 200, 30]
         - label_tag         - string that will precede the label description in the column header
-        - metric            - metric to extract {'all','mean','median','std','volume','vox_count'}
+        - metric            - metric to extract {'all','mean','median','std','volume','vox_count','data'}
+                            - if you select 'data', an additional list of lists will be returned
+                            - such that list[0]=voxel values list[1]=voxel coordinates
         - thresh_mask_files - list of files for additional thresholding (again, same restrictions as label_files)
         - ROI_mask_files    - binary mask file(s) denoting ROI for extraction =1
         - thresh_val        - value for thresholding
