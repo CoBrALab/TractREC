@@ -557,6 +557,9 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
     if n_jobs<1:
         n_jobs=1
 
+    if metric is 'data': #only used if we have requested "data", in which case we get the volumes in the df and the raw data in a list of np.array as a second return variable
+        all_res_data=[]
+        
     if ALL_FILES_ORDERED:
         print("You have set ALL_FILES_ORDERED=True, I will not check your input lists for ordering.")
 
@@ -589,16 +592,20 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
     elif isinstance(label_subset_idx,int):
         label_subset_idx = [label_subset_idx] #change to a list if it was only a single integer
     if metric is not 'all':
+        if metric is not 'data':
+            metric_txt = metric
+        else:
+            metric_txt = 'volume'
         if label_df is None:  # WHAT? you didn't provide a label to idx matching dataframe??
             print("label_df dataframe (label index to name mapping) was not defined")
             print("Generic label names will be calculated from the unique values in the first label file")
             for idx, label_id in enumerate(label_subset_idx):
-                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + metric
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + metric_txt
                 cols.append(col_name)
             df_4d = pd.DataFrame(columns=cols)
         else:
             for idx, label_id in enumerate(label_subset_idx):
-                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + metric
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + metric_txt
                 cols.append(col_name)
             df_4d = pd.DataFrame(columns=cols)
     else: #we want all the metrics, so we need to create the columns for all of them
@@ -761,12 +768,23 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 df_4d.loc[idx, 'thresh_val'] = thresh_val  # this is overkill, since it should always be the same
                 df_4d.loc[idx, 'thresh_type'] = thresh_type  # this is overkill, since it should always be the same
                 df_4d.loc[idx, 'ROI_mask'] = ROI_mask_fname
-                if metric is 'all':
+                if (metric is 'all'):
                     df_4d.loc[idx, 7:7+1*len(label_subset_idx)] = res.mean
                     df_4d.loc[idx, 7+1*len(label_subset_idx):7+2*len(label_subset_idx)] = res.median
                     df_4d.loc[idx, 7+2*len(label_subset_idx):7+3*len(label_subset_idx)] = res.std
                     df_4d.loc[idx, 7+3*len(label_subset_idx):7+4*len(label_subset_idx)] = res.volume
                     df_4d.loc[idx, 7+4*len(label_subset_idx):7+5*len(label_subset_idx)] = [len(a_idx) for a_idx in res.data]  # gives num vox
+#                elif metric is 'data':
+#                    data_string_list=[None]*len(res.data)
+#                    for string_list_idx,res_data_single_sub in enumerate(res.data):
+#                        data_string=""
+#                        for val in res_data_single_sub:
+#                            data_string=data_string+" "+"{0:.4f}".format(val)
+#                        data_string_list[string_list_idx]=data_string
+#                    df_4d.loc[idx,7::] = data_string_list
+                elif metric is 'data':
+                    df_4d.loc[idx, 7::] = res.volume
+                    all_res_data.append(np.array(res.data))
                 elif metric is 'mean':
                     df_4d.loc[idx, 7::] = res.mean
                 elif metric is 'median':
@@ -786,7 +804,10 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 print("Darn! There is something wrong with: " + ID)
                 print("##=====================================================================##")
     print ""
-    return df_4d
+    if metric is not 'data':
+        return df_4d
+    else:
+        return df_4d, all_res_data
 
 
 def calc_3D_flux(data, structure=None, distance_method='edt'):
