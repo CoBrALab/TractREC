@@ -308,9 +308,10 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
 
     class return_results(object):
         # output results as an object with these values
-        def __init__(self, label_val, data, volume, mean, median, std, minn, maxx):
+        def __init__(self, label_val, data, vox_coord, volume, mean, median, std, minn, maxx):
             self.label_val = np.array(label_val)
             self.data = np.array(data)
+            self.vox_coord = np.array(vox_coord)
             self.volume = np.array(volume)
             self.mean = np.array(mean)
             self.median = np.array(median)
@@ -335,6 +336,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
 
     d_label_val = []
     d_data = []
+    d_vox_coord = []
     d_volume = []
     d_mean = []
     d_median = []
@@ -469,6 +471,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         # keep track of these as we loop, convert to structure later on
         d_label_val.append(mask_id)
         d_data.append(dx)
+        d_vox_coord.append(np.column_stack(np.where(dx==mask_id)))
         d_mean.append(np.mean(dx))  # XXX could put a check here to set the values to NaN or None if there is no data
         d_median.append(np.median(dx))
         d_std.append(np.std(dx))
@@ -476,7 +479,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         d_max.append(np.max(dx))
     if VERBOSE:
         print("")
-    results = return_results(d_label_val, d_data, d_volume, d_mean, d_median, d_std, d_min, d_max)
+    results = return_results(d_label_val, d_data, d_vox_coord, d_volume, d_mean, d_median, d_std, d_min, d_max)
 
     if result == 'all':
         return results
@@ -562,7 +565,8 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         n_jobs=1
 
     if metric is 'data': #only used if we have requested "data", in which case we get the volumes in the df and the raw data in a list of np.array as a second return variable
-        all_res_data=[]
+        all_res_data = []
+        all_res_data_coords = []
         
     if ALL_FILES_ORDERED:
         print("You have set ALL_FILES_ORDERED=True, I will not check your input lists for ordering.")
@@ -789,6 +793,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 elif metric is 'data':
                     df_4d.loc[idx, 7::] = res.volume
                     all_res_data.append(np.array(res.data))
+                    all_res_data_coords.append(res.vox_coord)
                 elif metric is 'mean':
                     df_4d.loc[idx, 7::] = res.mean
                 elif metric is 'median':
@@ -811,7 +816,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
     if metric is not 'data':
         return df_4d
     else:
-        return df_4d, all_res_data
+        return df_4d, [all_res_data, all_res_data_coords]
 
 
 def calc_3D_flux(data, structure=None, distance_method='edt'):
