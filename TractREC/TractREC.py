@@ -471,7 +471,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         # keep track of these as we loop, convert to structure later on
         d_label_val.append(mask_id)
         d_data.append(dx)
-        d_vox_coord.append(np.column_stack(np.where(dx==mask_id)))
+        d_vox_coord.append(np.column_stack(np.where(dx==mask_id))) #x,y,z coordinates of this voxel, not sure if works
         d_mean.append(np.mean(dx))  # XXX could put a check here to set the values to NaN or None if there is no data
         d_median.append(np.median(dx))
         d_std.append(np.std(dx))
