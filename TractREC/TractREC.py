@@ -440,8 +440,12 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
             print(" Debug files:")
             print("  " + combined_mask_output_fname)
             print("  " + combined_mask_output_fname.split('.')[0] + "_metric.nii.gz")
-        niiSave(combined_mask_output_fname, mask, chosen_aff, data_type='uint16', header=chosen_header)
+        mask_t = np.zeros_like(mask)
+        for mask_id in mask_ids:
+            mask_t[mask==mask_id] = mask_id
+        niiSave(combined_mask_output_fname, mask_t, chosen_aff, data_type='uint16', header=chosen_header)
         niiSave(combined_mask_output_fname.split('.')[0] + "_metric.nii.gz", d, chosen_aff, header=chosen_header)
+        del mask_t
 
     if VERBOSE:
         print("Mask index extraction: "),
