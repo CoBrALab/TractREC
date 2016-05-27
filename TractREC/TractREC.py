@@ -308,7 +308,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
 
     class return_results(object):
         # output results as an object with these values
-        def __init__(self, label_val, data, vox_coord, volume, mean, median, std, minn, maxx):
+        def __init__(self, label_val, data, vox_coord, volume, mean, median, std, minn, maxx, settings):
             self.label_val = np.array(label_val)
             self.data = np.array(data)
             self.vox_coord = np.array(vox_coord)
@@ -318,18 +318,21 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
             self.std = np.array(std)
             self.minn = np.array(minn)
             self.maxx = np.array(maxx)
+            self.settings = settings
 
         def __str__(self):
             # defines what is returned when print is called on this class
             template_txt = """
             label_val: {label_val}
             len(data): {data_len}
+            vox_coord: voxel coordinates of data
             volume   : {volume}
             mean     : {mean}
             median   : {median}
             std      : {std}
             maxx     : {maxx}
             minn     : {minn}
+            settings : file and parameter settings (dictionary)
             """
             return template_txt.format(label_val=self.label_val, data_len=len(self.data), volume=self.volume,
                                        mean=self.mean, median=self.median, std=self.std, maxx=self.maxx, minn=self.minn)
@@ -343,6 +346,19 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
     d_std = []
     d_min = []
     d_max = []
+    d_settings = {'metric_fname': img_fname,
+    'label_fname': mask_fname,
+    'thresh_mask_fname': thresh_mask_fname,
+    'combined_mask_output_fname': combined_mask_output_fname,
+    'ROI_mask_fname': ROI_mask_fname,
+    'thresh_val': thresh_val,
+    'thresh_type': thresh_type,
+    'SKIP_ZERO_LABEL': SKIP_ZERO_LABEL,
+    'nonzero_stats': nonzero_stats,
+    'erode_vox': erode_vox,
+    'min_val': min_val,
+    'max_val': max_val,
+    'USE_LABEL_RES': USE_LABEL_RES}
 
     d, daff, dr, dh = imgLoad(img_fname, RETURN_RES=True, RETURN_HEADER=True)
     mask, maff, mr, mh = imgLoad(mask_fname, RETURN_RES=True, RETURN_HEADER=True)
@@ -456,9 +472,9 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         if VERBOSE:
             print(mask_id),
         dx = np.ma.masked_array(d, np.ma.make_mask(np.logical_not(mask == mask_id))).compressed()
-
         if nonzero_stats:
             dx = dx[dx > 0]
+            mask[d == 0] = 0 #this is necessary because we need the full 3d information to calculate the voxel coordinates
         if not max_val is None:
             dx[dx > max_val] = max_val
         if not min_val is None:
@@ -471,7 +487,8 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         # keep track of these as we loop, convert to structure later on
         d_label_val.append(mask_id)
         d_data.append(dx)
-        d_vox_coord.append(np.column_stack(np.where(dx==mask_id))) #x,y,z coordinates of this voxel, not sure if works
+        #print(np.where(dx==mask_id))
+        d_vox_coord.append(np.column_stack(np.where(mask==mask_id))) #x,y,z coordinates of this voxel, not sure if works
         d_mean.append(np.mean(dx))  # XXX could put a check here to set the values to NaN or None if there is no data
         d_median.append(np.median(dx))
         d_std.append(np.std(dx))
@@ -479,7 +496,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         d_max.append(np.max(dx))
     if VERBOSE:
         print("")
-    results = return_results(d_label_val, d_data, d_vox_coord, d_volume, d_mean, d_median, d_std, d_min, d_max)
+    results = return_results(d_label_val, d_data, d_vox_coord, d_volume, d_mean, d_median, d_std, d_min, d_max, d_settings)
 
     if result == 'all':
         return results
@@ -794,8 +811,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
 #                    df_4d.loc[idx,7::] = data_string_list
                 elif metric is 'data':
                     df_4d.loc[idx, 7::] = res.volume
-                    all_res_data.append(np.array(res.data))
-                    all_res_data_coords.append(res.vox_coord)
+                    all_res_data.append(res)
                 elif metric is 'mean':
                     df_4d.loc[idx, 7::] = res.mean
                 elif metric is 'median':
@@ -818,8 +834,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
     if metric is not 'data':
         return df_4d
     else:
-        return df_4d, [all_res_data, all_res_data_coords]
-
+        return df_4d, all_res_data
 
 def calc_3D_flux(data, structure=None, distance_method='edt'):
     """
