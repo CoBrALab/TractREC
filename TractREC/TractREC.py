@@ -583,9 +583,8 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
     if n_jobs<1:
         n_jobs=1
 
-    if metric is 'data': #only used if we have requested "data", in which case we get the volumes in the df and the raw data in a list of np.array as a second return variable
+    if metric is 'data': #only used if we have requested "data", in which case we get the volumes in the df and the raw data in a list of results objects from extract_stats_from_masked_image
         all_res_data = []
-        all_res_data_coords = []
         
     if ALL_FILES_ORDERED:
         print("You have set ALL_FILES_ORDERED=True, I will not check your input lists for ordering.")
