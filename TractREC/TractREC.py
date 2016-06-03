@@ -58,11 +58,12 @@ def niiSave(full_fileName, data, aff, header=None, data_type='float32', CLOBBER=
 
 def create_dir(some_directory):
     """
-    Create directory if it does not exist
+    Create directory recursively if it does not exist
+      - uses os.mkdirs
     """
     import os
     if not os.path.exists(some_directory):
-        os.mkdir(some_directory)
+        os.mkdirs(some_directory)
 
 
 def natural_sort(l):

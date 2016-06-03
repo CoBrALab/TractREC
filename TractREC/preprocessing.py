@@ -352,10 +352,11 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
 def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=0, bStep=[0,1000,2000,3000],nthreads=8,mem=2.5,CLOBBER=False,SUBMIT=False):
     #No... requires closer to 36GB for the HCP data
     #when requesting cores, select 24 and take the whole memory (time it...)
-    #currently requires the compiled version of spams that I have installed locally
+    #currently requires the compiled version of spams that I have installed locally    
     import os
     #import amico
     import sys
+    from TractREC import create_dir
     
     spams_path='/home/cic/stechr/Documents/code/spams-python'
     #working_amico_path='/home/cic/stechr/Documents/code/amico_cjs/AMICO/python/amico'
@@ -365,11 +366,13 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
     sys.path.append(spams_path) #EW! TODO: make me permanent at some point...
     
     if subject_dirs is None:
-        subject_dirs=['100307'] #TODO, create a list of subjects from the subject_root_dir
-        #subject_dirs=tr.natural_sort(os.listdir(subject_root_dir))
+        #subject_dirs=['100307'] #TODO, create a list of subjects from the subject_root_dir
+        subject_dirs=os.listdir(subject_root_dir)
+        if "kernels" in subject_dirs: subject_dirs.remove("kernels") #don't try to do this for the kernels directory, which AMICO hard-codes here
     
     #amico.core.setup()
     for ID in subject_dirs:    #ID is the subdirectory off of subject_root_dir that contains each subject
+        
         """
         ae=amico.Evaluation(subject_root_dir,ID)
         amico.util.fsl2scheme(bvals_fname, bvecs_fname,scheme_fname,bStep)
@@ -387,8 +390,9 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
         bvecs_fname=os.path.join(subject_root_dir,ID,"bvecs")
         scheme_fname=os.path.join(subject_root_dir,ID,"bvals_bvecs_sanitised.scheme")
         mask_fname=os.path.join(subject_root_dir,ID,"nodif_brain_mask.nii.gz")
-        out_dir=os.path.join(out_root_dir,ID) #hopefully this will change
-
+        out_dir=os.path.join(out_root_dir,ID)
+        create_dir(out_dir)
+        
         #bStep=[0,1000,2000,3000]
         #b0_thr=0
         model="NODDI"
@@ -402,6 +406,7 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
         code.append("amico.util.fsl2scheme('{bvals_fname}', '{bvecs_fname}','{scheme_fname}',{bStep})".format(bvals_fname=bvals_fname, bvecs_fname=bvecs_fname,scheme_fname=scheme_fname,bStep=bStep))
         code.append("ae.load_data(dwi_filename='{dwi_fname}',scheme_filename='{scheme_fname}',mask_filename='{mask_fname}',b0_thr={b0_thr})".format(dwi_fname=dwi_fname,scheme_fname=scheme_fname,mask_fname=mask_fname,b0_thr=b0_thr))
         code.append("ae.set_model('{model}')".format(model=model))
+        code.append("ae.set_config('OUTPUT_path','{OUTPUT_path}')".format(OUTPUT_path=out_dir))        
         code.append("ae.generate_kernels()") #single core only, 2.5mins (HCP), apparently only needs to be done once if all data was acquired the same way (loading fits to the bvecs) - not impractical to do it every time, since I don't see a way to save it
         code.append("ae.load_kernels()") #resamples the LUT for this subject - looks to use a lot of mem...and will use available cores - 2.5mins on 8
         code.append("ae.fit()") #fit the model
@@ -491,10 +496,11 @@ import sys
 sys.path.append('/home/cic/stechr/Documents/code/spams-python') #EW! TODO: make me permanent at some point...
 import spams
 import amico
-ae=amico.Evaluation('/data/chamal/projects/steele/working/HCP_CB_DWI/source/dwi','100307')
+ae=amico.Evaluation('/data/chamal/projects/steele/working/HCP_CB_DWI/source/HCP_S900/diffusion','100307')
 amico.util.fsl2scheme("bvals", "bvecs","bvals_bvecs_sanitised.scheme",[0,1000,2000,3000])
-ae.load_data(dwi_filename='data.nii.gz',scheme_filename='bvals_bvecs_sanitised.scheme',mask_filename='nodif_brain_mask.nii.gz',b0_thr=0) #may run out of mem in the 32bit conversion
+ae.load_data(dwi_filename='data_2slices.nii.gz',scheme_filename='bvals_bvecs_sanitised.scheme',mask_filename='nodif_brain_mask.nii.gz',b0_thr=0) #may run out of mem in the 32bit conversion
 ae.set_model("NODDI")
+ae.set_config('OUTPUT_path','/data/chamal/projects/steele/working/NODDI_test/AMICO_test2')
 ae.generate_kernels() #single core only, 2.5mins (HCP), apparently only needs to be done once if all data was acquired the same way (loading fits to the bvecs) - not impractical to do it every time, since I don't see a way to save it
 ae.load_kernels() #resamples the LUT for this subject - looks to use a lot of mem...and will use available cores (though not fully) - 2.5mins
 ae.fit()
