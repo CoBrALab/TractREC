@@ -516,6 +516,42 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
     elif result == 'max':
         return results.maxx
 
+
+def map_values_to_label_file(values_label_lut_csv_fname, label_img_fname, out_mapped_label_fname=None, value_colName="Value", label_idx_colName="Index", SKIP_ZERO_IDX=True):
+    # map from values/index dataframe to labels in label_fname (for visualising results in label space)
+    """
+
+    :param values_label_lut_csv_fname: csv file mapping values to index in label_img_fname
+    :param label_img_fname: label file (nii or other)
+    :param out_mapped_label_fname: ouptut file name (nii/nii.gz only)
+    :param value_colName: name of column with values (defulat: Value)
+    :param label_idx_colName:name of column with index numbers (default: Index)
+    :param SKIP_ZERO_IDX: skips 0 (usually background) {True, False}
+    :return: out_mapped_label_fname
+    """
+    import numpy as np
+    import pandas as pd
+    import os
+    if out_mapped_label_fname is None:
+        out_mapped_label_fname = os.path.splitext(os.path.splitext(label_img_fname)[0])[0] + "_value_mapped.nii.gz" #takes care of two . extensions if necessary
+    print value_colName
+    df=pd.read_csv(values_label_lut_csv_fname)
+
+    values=df[value_colName].values
+    indices=df[label_idx_colName].values
+    if SKIP_ZERO_IDX and 0 in indices:
+        indices.remove(0)
+
+    d,a,h = imgLoad(label_img_fname,RETURN_HEADER=True)
+    d_out = np.zeros_like(d).astype(np.float32)
+
+    for idx,index in enumerate(indices):
+       # print index, values[idx]
+        d_out[d==index] = values[idx]
+
+    niiSave(out_mapped_label_fname,d_out,a,header=h)
+    return out_mapped_label_fname
+
 def extract_label_volume(label_files,IDs=None, label_df=None,
                          label_subset_idx=None, label_tag="label_",
                          thresh_mask_files=None, ROI_mask_files=None,
