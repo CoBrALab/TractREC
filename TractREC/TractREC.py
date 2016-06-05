@@ -534,7 +534,6 @@ def map_values_to_label_file(values_label_lut_csv_fname, label_img_fname, out_ma
     import os
     if out_mapped_label_fname is None:
         out_mapped_label_fname = os.path.splitext(os.path.splitext(label_img_fname)[0])[0] + "_value_mapped.nii.gz" #takes care of two . extensions if necessary
-    print value_colName
     df=pd.read_csv(values_label_lut_csv_fname)
 
     values=df[value_colName].values
