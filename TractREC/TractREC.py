@@ -259,7 +259,67 @@ def affine1_to_affine2(aff1, aff2):
     aff1_inv = np.linalg.inv(aff1)
     return np.matmul(aff1_inv, aff2)
 
+def map_values_to_label_file(values_label_lut_csv_fname, label_img_fname,
+                             out_mapped_label_fname=None,
+                             value_colName="Value",
+                             label_idx_colName="Index",
+                             SKIP_ZERO_IDX=True,
+                             MATCH_VALUE_TO_LABEL_VIA_MATRIX=False):
+    """
+    Map from values/index dataframe to labels in label_fname (for visualising results in label space)
+    
+    :param values_label_lut_csv_fname: csv file mapping values to index in label_img_fname
+    :param label_img_fname: label file (nii or other)
+    :param out_mapped_label_fname: ouptut file name (nii/nii.gz only)
+    :param value_colName: name of column with values (defulat: Value)
+    :param label_idx_colName:name of column with index numbers (default: Index)
+    :param SKIP_ZERO_IDX: skips 0 (usually background) {True, False}
+    :param MATCH_VALUE_TO_LABEL_VIA_MATRIX: if true, values_label_lut_csv_fname is a matrix with first column = values, 2nd = labels
+    :return: out_mapped_label_fname
+    """
+    import numpy as np
+    import pandas as pd
+    import os
+    
+    if out_mapped_label_fname is None:
+        out_mapped_label_fname = os.path.splitext(os.path.splitext(label_img_fname)[0])[0] + "_value_mapped.nii.gz" #takes care of two . extensions if necessary
+    
+    if not MATCH_VALUE_TO_LABEL_VIA_MATRIX: #we expect a csv file
+        df=pd.read_csv(values_label_lut_csv_fname)
+        values=df[value_colName].values
+        indices=df[label_idx_colName].values
+    else: #otherwise just a matrix of values
+        values = values_label_lut_csv_fname[:,1]
+        indices = values_label_lut_csv_fname[:,2]
+        
+    if SKIP_ZERO_IDX and 0 in indices:
+        indices.remove(0)
 
+    d,a,h = imgLoad(label_img_fname,RETURN_HEADER=True)
+    d_out = np.zeros_like(d).astype(np.float32)
+
+    for idx,index in enumerate(indices):
+       # print index, values[idx]
+        d_out[d==index] = values[idx]
+
+    niiSave(out_mapped_label_fname,d_out,a,header=h)
+    return out_mapped_label_fname
+
+def map_values_to_coordinates(values, coordinates, reference_fname, out_mapped_fname=None, return_mapped_data=True):
+    """
+    Maps values to coordinate locations. Coordinate space provided by reference_fname. Values in a single vector, coordinates in list/matrix of coord locations
+    return: mapped data array (when return_mapped_data=True)
+    """
+    import numpy as np
+    d,a,h = imgLoad(reference_fname,RETURN_HEADER=True)
+    d_out = np.zeros_like(d).astype(np.float32)
+    for idx, coord in enumerate(coordinates):
+        d_out[tuple(coord)] = values(idx)
+    if out_mapped_fname is None:
+        niiSave(out_mapped_fname,d_out,a,header=h)
+    if return_mapped_data or out_mapped_fname is None:
+        return d_out
+    
 def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=None, combined_mask_output_fname=None,
                                     ROI_mask_fname=None, thresh_val=None,
                                     thresh_type=None, result='all', label_subset=None, SKIP_ZERO_LABEL=True,
@@ -515,41 +575,6 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         return results.minn
     elif result == 'max':
         return results.maxx
-
-
-def map_values_to_label_file(values_label_lut_csv_fname, label_img_fname, out_mapped_label_fname=None, value_colName="Value", label_idx_colName="Index", SKIP_ZERO_IDX=True):
-    # map from values/index dataframe to labels in label_fname (for visualising results in label space)
-    """
-
-    :param values_label_lut_csv_fname: csv file mapping values to index in label_img_fname
-    :param label_img_fname: label file (nii or other)
-    :param out_mapped_label_fname: ouptut file name (nii/nii.gz only)
-    :param value_colName: name of column with values (defulat: Value)
-    :param label_idx_colName:name of column with index numbers (default: Index)
-    :param SKIP_ZERO_IDX: skips 0 (usually background) {True, False}
-    :return: out_mapped_label_fname
-    """
-    import numpy as np
-    import pandas as pd
-    import os
-    if out_mapped_label_fname is None:
-        out_mapped_label_fname = os.path.splitext(os.path.splitext(label_img_fname)[0])[0] + "_value_mapped.nii.gz" #takes care of two . extensions if necessary
-    df=pd.read_csv(values_label_lut_csv_fname)
-
-    values=df[value_colName].values
-    indices=df[label_idx_colName].values
-    if SKIP_ZERO_IDX and 0 in indices:
-        indices.remove(0)
-
-    d,a,h = imgLoad(label_img_fname,RETURN_HEADER=True)
-    d_out = np.zeros_like(d).astype(np.float32)
-
-    for idx,index in enumerate(indices):
-       # print index, values[idx]
-        d_out[d==index] = values[idx]
-
-    niiSave(out_mapped_label_fname,d_out,a,header=h)
-    return out_mapped_label_fname
 
 def extract_label_volume(label_files,IDs=None, label_df=None,
                          label_subset_idx=None, label_tag="label_",
