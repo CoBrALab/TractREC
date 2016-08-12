@@ -271,10 +271,10 @@ def map_values_to_label_file(values_label_lut_csv_fname, label_img_fname,
     :param values_label_lut_csv_fname: csv file mapping values to index in label_img_fname
     :param label_img_fname: label file (nii or other)
     :param out_mapped_label_fname: ouptut file name (nii/nii.gz only)
-    :param value_colName: name of column with values (defulat: Value)
+    :param value_colName: name of column with values (default: Value)
     :param label_idx_colName:name of column with index numbers (default: Index)
     :param SKIP_ZERO_IDX: skips 0 (usually background) {True, False}
-    :param MATCH_VALUE_TO_LABEL_VIA_MATRIX: if true, values_label_lut_csv_fname is a matrix with first column = values, 2nd = labels
+    :param MATCH_VALUE_TO_LABEL_VIA_MATRIX: if true, values_label_lut_csv_fname is a matrix with first column = labels, 2nd = values
     :return: out_mapped_label_fname
     """
     import numpy as np
@@ -289,8 +289,8 @@ def map_values_to_label_file(values_label_lut_csv_fname, label_img_fname,
         values=df[value_colName].values
         indices=df[label_idx_colName].values
     else: #otherwise just a matrix of values
+        indices = values_label_lut_csv_fname[:,0]
         values = values_label_lut_csv_fname[:,1]
-        indices = values_label_lut_csv_fname[:,2]
         
     if SKIP_ZERO_IDX and 0 in indices:
         indices.remove(0)
@@ -299,7 +299,7 @@ def map_values_to_label_file(values_label_lut_csv_fname, label_img_fname,
     d_out = np.zeros_like(d).astype(np.float32)
 
     for idx,index in enumerate(indices):
-       # print index, values[idx]
+        print index, values[idx]
         d_out[d==index] = values[idx]
 
     niiSave(out_mapped_label_fname,d_out,a,header=h)
