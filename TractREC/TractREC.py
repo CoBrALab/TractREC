@@ -324,7 +324,8 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
                                     ROI_mask_fname=None, thresh_val=None,
                                     thresh_type=None, result='all', label_subset=None, SKIP_ZERO_LABEL=True,
                                     nonzero_stats=True,
-                                    erode_vox=None, min_val=None, max_val=None, VERBOSE=False, USE_LABEL_RES=False):
+                                    erode_vox=None, min_val=None, max_val=None, VERBOSE=False, USE_LABEL_RES=False,
+                                    volume_idx=0):
     #TODO - THIS SHOULD BE CHECKED TO MAKE SURE THAT IT WORKS WITH ALL INPUTS - ASSUMPTIONS ABOUT TRANSFORMS WERE MADE XXX
     #TODO - works for NII and MNC, but NOT tested for combining the two of them XXX
     #TODO - Add an additional flag to remove 0s that are present in the metric file from analysis
@@ -422,6 +423,10 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
     'USE_LABEL_RES': USE_LABEL_RES}
 
     d, daff, dr, dh = imgLoad(img_fname, RETURN_RES=True, RETURN_HEADER=True)
+    if len(np.shape(d))>3:
+        #we sent 4d data!
+        d = d[:,:,:,volume_idx] #select the volume that was requested
+
     mask, maff, mr, mh = imgLoad(mask_fname, RETURN_RES=True, RETURN_HEADER=True)
 
     if os.path.splitext(mask_fname)[
@@ -603,7 +608,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                                 thresh_type=None, erode_vox=None, zfill_num=3,
                                 DEBUG_DIR=None, VERBOSE=False,
                                 USE_LABEL_RES=False, ALL_FILES_ORDERED=False,
-                                n_jobs=1):
+                                n_jobs=1,volume_idx=0):
 
     """
     Extracts voxel-wise data for given set of matched label_files and metric files. Returns pandas dataframe of results
@@ -845,7 +850,8 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                                                       ROI_mask_fname=ROI_mask_fname, thresh_val=thresh_val,
                                                       thresh_type=thresh_type,
                                                       label_subset=label_subset_idx, erode_vox=erode_vox, result='all',
-                                                      max_val=max_val, VERBOSE=VERBOSE, USE_LABEL_RES=USE_LABEL_RES)
+                                                      max_val=max_val, VERBOSE=VERBOSE, USE_LABEL_RES=USE_LABEL_RES,
+                                                      volume_idx=volume_idx)
 
                 # now put the data into the rows:
                 df_4d.loc[idx, 'ID'] = str(ID)  # XXX there should be a more comprehensive solution to this
