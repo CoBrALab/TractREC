@@ -354,6 +354,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
          - max_val:                     set max val for clipping of metric (eg., for FA maps, set to 1.0)
          - VERBOSE                      verbose reporting or not (default: False)
          - USE_LABEL_RES                otherwise uses the res of the img_fname (default: False)
+         - volume_idx        - select volume of 4d file if passed in (default=0, skipped if 3d file)
 
        Output: (in data structure composed of numpy array(s))
          - data, volume, mean, median, std, minn, maxx
@@ -634,6 +635,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         - VERBOSE           - verbose reporting or not (default: False)
         - USE_LABEL_RES     - otherwise uses the res of the img_fname (default: False)
         - ALL_FILES_ORDERED - set to True if you know that all of your input lists of files are matched correctly
+        - volume_idx        - select volume of 4d file if passed in (default=0, skipped if 3d file)
 
     OUTPUT:
         - df_4d             - pandas dataframe of results
