@@ -426,8 +426,12 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
     d, daff, dr, dh = imgLoad(img_fname, RETURN_RES=True, RETURN_HEADER=True)
     if len(np.shape(d))>3:
         #we sent 4d data!
+        if VERBOSE:
+            print("You are trying to extract metrics from a single volume of a 4d file, it should work (but takes longer, sorry)... ")
+        print(" Extracting from volume index: " + str(volume_idx))
+        print("    - data shape: " + str(np.shape(d)))
         d = d[:,:,:,volume_idx] #select the volume that was requested
-
+        
     mask, maff, mr, mh = imgLoad(mask_fname, RETURN_RES=True, RETURN_HEADER=True)
 
     if os.path.splitext(mask_fname)[
@@ -452,6 +456,8 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         # see if we need to resample the img to the mask
         if not np.array_equal(np.diagonal(maff), np.diagonal(daff)):
             d = resample_img(img_fname, maff, np.shape(mask), interpolation='nearest').get_data()
+            if len(np.shape(d))>3:
+                d = d[:,:,:,volume_idx]
     else:  # default way, use img_fname resolution
         chosen_aff = daff
         chosen_header = dh
@@ -665,6 +671,8 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         metric_files = [metric_files]
     if isinstance(label_files, basestring):
         label_files = [label_files]
+    if isinstance(thresh_mask_files, basestring):
+        thresh_mask_files = [thresh_mask_files]
     if len(label_files) == 1:
         USE_SINGLE_LABEL_FILE = True #if there is only one, then we assume that all files are registered and we just need the single label file
     if isinstance(IDs, basestring):
@@ -789,7 +797,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 label_file = label_files[0]
         if thresh_mask_files is not None:
             if len(thresh_mask_files) == 1:  # if we only provide one mask, we use this for everyone
-                thresh_mask_fname = thresh_mask_files
+                thresh_mask_fname = thresh_mask_files[0]
             elif len(thresh_mask_files) > 1 and not(ALL_FILES_ORDERED):
                 thresh_mask_fname = [s for s in thresh_mask_files if ID in s]  # make sure our label file
                                                                                 # is in the list that was passed

@@ -428,8 +428,8 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
 
 def interp_discrete_hist_peaks(input_fname, output_fname=None, value_count_cutoff=50):
     """
-    Detects peaks in histogram of input image where the number of voxels is greater than value_count_cutoff, smooths
-    them with 3D linear interpolation and writes the file with extension _smth_peaks.nii.gz
+    Detects peaks in histogram of input image where the number of voxels is greater than value_count_cutoff, brings in the 
+    value from a 3d gaussian filtered version of the data (sigma=1), and writes the file with extension _smth_peaks.nii.gz
 
     :param input_fname: full path and fname to input image file
     :param output_fname: full path and fname to output image file, None for input location and _smooth_peaks.nii.gz
@@ -437,20 +437,21 @@ def interp_discrete_hist_peaks(input_fname, output_fname=None, value_count_cutof
     :return:
     """
     from scipy import ndimage, interpolate
+    import scipy.ndimage.filters as filt
     import nibabel as nb
     import numpy as np
     import os
     import matplotlib.pyplot as plt
 
+    sigma=1
+    
     if output_fname is None:
         output_fname = os.path.join(os.path.dirname(input_fname),os.path.basename(input_fname).split(".")[0]+
                                     "_smth_peaks.nii.gz")
-    #structure = ndimage.morphology.generate_binary_structure(3, 3)
-    #structure[1, 1, 1] = 0
 
     img = nb.load(input_fname)
     d3d = img.get_data()
-    #d3d_out = np.zeros_like(d3d)
+    d3d_smth = filt.gaussian_filter(d3d,sigma) #3d gaussian filter to blur the data
     d = np.ravel(d3d)
 
     hist, bin_edges = np.histogram(d,bins=len(np.unique(d))) #histogram for each value
