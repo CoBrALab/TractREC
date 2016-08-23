@@ -338,7 +338,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         - clipped to >max_val
         - volume output based on whichever resolution you chose with USE_LABEL_RES
        Input:
-         - img_fname:                   3D image
+         - img_fname:                   3D or 4D image (if 4D, set volume_idx to select volume)
          - mask_fname:                  3D mask in same space, single or multiple labels (though not necessarily same res)
          - thresh_mask_fname:           3D mask for thresholding, can be binary or not
          - combined_mask_output_fname:  output final binary mask to this file and a _metric file - will split on periods (used for confirmation of region overlap)
@@ -354,7 +354,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
          - max_val:                     set max val for clipping of metric (eg., for FA maps, set to 1.0)
          - VERBOSE                      verbose reporting or not (default: False)
          - USE_LABEL_RES                otherwise uses the res of the img_fname (default: False)
-         - volume_idx        - select volume of 4d file if passed in (default=0, skipped if 3d file)
+         - volume_idx                   select volume of 4D img_fname is selected (default=0, skipped if 3D file)
 
        Output: (in data structure composed of numpy array(s))
          - data, volume, mean, median, std, minn, maxx
@@ -410,18 +410,18 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
     d_min = []
     d_max = []
     d_settings = {'metric_fname': img_fname,
-    'label_fname': mask_fname,
-    'thresh_mask_fname': thresh_mask_fname,
-    'combined_mask_output_fname': combined_mask_output_fname,
-    'ROI_mask_fname': ROI_mask_fname,
-    'thresh_val': thresh_val,
-    'thresh_type': thresh_type,
-    'SKIP_ZERO_LABEL': SKIP_ZERO_LABEL,
-    'nonzero_stats': nonzero_stats,
-    'erode_vox': erode_vox,
-    'min_val': min_val,
-    'max_val': max_val,
-    'USE_LABEL_RES': USE_LABEL_RES}
+                  'label_fname': mask_fname,
+                  'thresh_mask_fname': thresh_mask_fname,
+                  'combined_mask_output_fname': combined_mask_output_fname,
+                  'ROI_mask_fname': ROI_mask_fname,
+                  'thresh_val': thresh_val,
+                  'thresh_type': thresh_type,
+                  'SKIP_ZERO_LABEL': SKIP_ZERO_LABEL,
+                  'nonzero_stats': nonzero_stats,
+                  'erode_vox': erode_vox,
+                  'min_val': min_val,
+                  'max_val': max_val,
+                  'USE_LABEL_RES': USE_LABEL_RES}
 
     d, daff, dr, dh = imgLoad(img_fname, RETURN_RES=True, RETURN_HEADER=True)
     if len(np.shape(d))>3:
@@ -592,8 +592,27 @@ def extract_label_volume(label_files,IDs=None, label_df=None,
                          label_subset_idx=None, label_tag="label_",
                          thresh_mask_files=None, ROI_mask_files=None,
                          thresh_val=None, max_val=None,thresh_type=None,
-                         zfill_num=3,VERBOSE=False):
-    # wrapper for extract_quantitative metric to calculate volume from label files
+                         zfill_num=3, VERBOSE=False, volume_idx=0):
+    """
+    wrapper for extract_quantitative metric to calculate volume from label files,
+    assumes: ALL_FILES_ORDERED= True
+             USE_LABEL_RES    = True
+
+    :param label_files:
+    :param IDs:
+    :param label_df:
+    :param label_subset_idx:
+    :param label_tag:
+    :param thresh_mask_files:
+    :param ROI_mask_files:
+    :param thresh_val:
+    :param max_val:
+    :param thresh_type:
+    :param zfill_num:
+    :param VERBOSE:
+    :param volume_idx:
+    :return:
+    """
     df = extract_quantitative_metric(label_files, label_files, 
                                      IDs=IDs, 
                                      label_df=label_df, 
@@ -606,7 +625,8 @@ def extract_label_volume(label_files,IDs=None, label_df=None,
                                      thresh_type=thresh_type, 
                                      erode_vox=None, zfill_num=3,
                                      DEBUG_DIR=None, VERBOSE=False,
-                                     USE_LABEL_RES=True, ALL_FILES_ORDERED=True)
+                                     USE_LABEL_RES=True, ALL_FILES_ORDERED=True,
+                                     volume_idx=0)
     return df
 
 def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=None, label_subset_idx=None,
