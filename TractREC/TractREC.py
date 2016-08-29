@@ -1044,6 +1044,64 @@ def skeletonise_volume(vol_fname, threshold_type='percentage', threshold_val=0.2
 
     return data_dist_smth_skel_fname
 
+def get_distance_shell(data, direction = 'outer', distance_method='edt',start_distance=0, stop_distance=1, return_as_distance=False, reset_zero_distance = False):
+    """
+    Calculates a distance metric on the provided binary data, limits it within start_distance and stop_distance to produce a shell.
+    Calculated in voxel units. If stop_distance - start_distance < 1, then there will likely be holes in the shell
+
+    :param data:                numpy.array of binary data {0,1}
+    :param direction:           direction for distance function 'outer' increases from region boundary to limits of volume, 'inner' from region boundary to center
+    :param distance_method:     desired distance method {'edt',fmm'}
+    :param start_distance:      defines the start position of the shell, in distance units
+    :param stop_distance:       defines the stop position of the shell, in distance units (None does max distance)
+    :param return_as_distance:  do not binarise the distance map before returning
+    :param reset_zero_distance: subtract the minimum distance from the distance map, does nothing when return_as_distance=False (note, sets all boundary voxels at start_distance to 0!)
+    :return: data_dist          binary shell defined as 1s within the start and stop distances (np.array)
+    """
+    from scipy import ndimage
+    import numpy as np
+
+    if np.sum(np.unique(data)[:]) > 1:
+        print('Please use a binary image')
+        return
+
+    #if we wanted the outer distance, need to flip our ones and zeros
+    if direction is "outer":
+        data=np.logical_not(data).astype(int)
+    elif direction is "inner":
+        pass #don't need to do anything
+    else:
+        print("Please select a valid direction for the distance function: {/'inner/', /'outer/'}")
+        print("Exiting")
+        return
+
+    # distance metric
+    if distance_method is 'edt':
+        data_dist = ndimage.distance_transform_edt(data).astype('float32')
+    elif distance_method is 'fmm':
+        import skfmm  # scikit-fmm
+        data_dist = skfmm.distance(data).astype('float32')
+    else:
+        print('You have not selected a valid distance metric.')
+        print('Exiting.')
+        return
+
+    print("Distance range = %.2f - %.2f") %(np.min(np.unique(data_dist)),np.max(np.unique(data_dist)))
+    if stop_distance > np.max(np.unique(data_dist)):
+        print('You have set your stop_distance greater than the possible distance')
+    if start_distance > np.max(np.unique(data_dist)):
+        print("You have set your start_distance greater than the maximum distance, where distance range = %.2f - %.2f") %(np.min(np.unique(data_dist)),np.max(np.unique(data_dist)))
+        print("This results a volume filled with 0s. Have fun with that.")
+
+    data_dist[data_dist<start_distance] = 0
+    if stop_distance is not None:
+        data_dist[data_dist>stop_distance] = 0
+    if not return_as_distance:
+        data_dist[data_dist!=0] = 1
+    if return_as_distance and reset_zero_distance:
+        data_dist[data_dist != 0] -= np.min(data_dist[np.nonzero(data_dist)])
+
+    return data_dist
 
 def submit_via_qsub(template_text=None, code="# NO CODE HAS BEEN ENTERED #", \
                     name='CJS_job', nthreads=8, mem=1.75, outdir='/scratch', \
