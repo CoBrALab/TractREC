@@ -354,11 +354,11 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
     #when requesting cores, select 24 and take the whole memory (time it...)
     #currently requires the compiled version of spams that I have installed locally    
     import os
-    #import amico
     import sys
     from TractREC import create_dir
-    
     spams_path='/home/cic/stechr/Documents/code/spams-python'
+    import spams #this is added here so that the requirements.txt is updated
+    import amico #this is added here so that the requirements.txt is updated
     #working_amico_path='/home/cic/stechr/Documents/code/amico_cjs/AMICO/python/amico'
     caller_path=os.path.dirname(os.path.abspath(__file__)) #path to this script, so we can add it to a sys.addpath statement
     #caller_path="caller_path_test"
