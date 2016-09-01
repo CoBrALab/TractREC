@@ -33,7 +33,7 @@ def crop_image(img_fname,mask_fname=None,crop_out_fname=None, roi_coords=None, r
         return img, crop_d, roi_coords
     else:
         niiSave(crop_out_fname,crop_d,a,header=h)
-    return crop_d, roi_coords
+        return crop_d, roi_coords
 
 
 #adapted code from nilearn for smoothing a dataset, rather than an img
