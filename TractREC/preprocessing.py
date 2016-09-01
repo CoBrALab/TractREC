@@ -20,6 +20,8 @@ def crop_image(img_fname,mask_fname=None,crop_out_fname=None, roi_coords=None, r
     :param roi_buffer:
     :return:
     """
+    import numpy as np
+
     d,a,zooms,h = imgLoad(img_fname,RETURN_RES=True,RETURN_HEADER=True)
     if mask_fname is not None:
         md, ma = imgLoad(mask_fname)
@@ -27,12 +29,22 @@ def crop_image(img_fname,mask_fname=None,crop_out_fname=None, roi_coords=None, r
 
     crop_d,roi_coords = crop_to_roi(d, roi_buffer=roi_buffer, roi_coords=roi_coords, data_4d=True)
 
+    #adapted from nilearn.image.crop_image (https://github.com/nilearn/nilearn/blob/master/nilearn/image/image.py)
+    linear_part = a[:3, :3]
+    old_origin = a[:3, 3]
+    new_origin_voxel = np.array(roi_coords)
+    new_origin = old_origin + linear_part.dot(new_origin_voxel)
+
+    new_a = np.eye(4)
+    new_a[:3, :3] = linear_part
+    new_a[:3, 3] = new_origin
+
     if crop_out_fname is not None:
-        niiSave(crop_out_fname,crop_d,a,header=h)
+        niiSave(crop_out_fname,crop_d,new_a,header=h)
         return crop_d, roi_coords
     else:
         import nibabel as nb
-        img=nb.Nifti1Image(crop_d,a,header=h)
+        img=nb.Nifti1Image(crop_d,new_a,header=h)
         return img, crop_d, roi_coords
 
 
