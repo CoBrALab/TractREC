@@ -125,7 +125,7 @@ def get_img_bounds(img_data):
     return bounds
 
 
-def crop_to_roi(img_data, roi_buffer=3, roi_coords=None):
+def crop_to_roi(img_data, roi_buffer=3, roi_coords=None, data_4d = False):
     """
     Crop image to region of interest based on non-zero voxels, coordinates, or roi_file (not implemented)
     0-based indexing, of course
@@ -153,6 +153,11 @@ def crop_to_roi(img_data, roi_buffer=3, roi_coords=None):
     img_data_crop = img_data[r_c[0, 0]:r_c[0, 1],
                     r_c[1, 0]:r_c[1, 1],
                     r_c[2, 0]:r_c[2, 1]]
+
+    if data_4d:
+        img_data_crop = img_data[r_c[0, 0]:r_c[0, 1],
+                        r_c[1, 0]:r_c[1, 1],
+                        r_c[2, 0]:r_c[2, 1],:]
 
     return img_data_crop, roi_coords
 
