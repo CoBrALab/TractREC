@@ -8,7 +8,8 @@ from TractREC import imgLoad
 from TractREC import niiSave
 from TractREC import create_dir
 from TractREC import submit_via_qsub
-from TractREC import get_image_bounds
+from TractREC import get_img_bounds
+from TractREC import crop_to_roi
 
 def crop_image(img_fname,mask_fname=None,crop_out_fname=None, roi_coords=None, roi_buffer=3):
     """
@@ -27,7 +28,7 @@ def crop_image(img_fname,mask_fname=None,crop_out_fname=None, roi_coords=None, r
 
     crop_d,roi_coords = crop_to_roi(d, roi_buffer=roi_buffer, roi_coords=roi_coords, data_4d=True)
 
-    if cropped_out_fname is not None:
+    if crop_out_fname is not None:
         img=nb.Nifti1Image(crop_d,a,header=h)
         return img, crop_d, roi_coords
     else:
