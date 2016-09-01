@@ -10,7 +10,7 @@ from TractREC import create_dir
 from TractREC import submit_via_qsub
 from TractREC import get_image_bounds
 
-def crop_image(img_fname,mask_fname=None,roi_coords=None, roi_buffer=3):
+def crop_image(img_fname,mask_fname=None,crop_out_fname=None, roi_coords=None, roi_buffer=3):
     """
     Crop an input image (3d or 4d) by image mask (1 = region to include in cropped file)
     :param img_fname:
@@ -26,8 +26,13 @@ def crop_image(img_fname,mask_fname=None,roi_coords=None, roi_buffer=3):
         roi_coords = get_img_bounds(md) + roi_buffer #this makes assumptions, only 0/1s in file TODO: checking?
 
     crop_d,roi_coords = crop_to_roi(d, roi_buffer=roi_buffer, roi_coords=roi_coords, data_4d=True)
-    img=nb.Nifti1Image(crop_d,a,header=h)
-    return img, crop_d, roi_coords
+
+    if cropped_out_fname is not None:
+        img=nb.Nifti1Image(crop_d,a,header=h)
+        return img, crop_d, roi_coords
+    else:
+        niiSave(crop_out_fname,crop_d,a,header=h)
+    return crop_d, roi_coords
 
 
 #adapted code from nilearn for smoothing a dataset, rather than an img
