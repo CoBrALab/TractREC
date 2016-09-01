@@ -11,7 +11,7 @@ from TractREC import submit_via_qsub
 from TractREC import get_img_bounds
 from TractREC import crop_to_roi
 
-def crop_image(img_fname,mask_fname=None,crop_out_fname=None, roi_coords=None, roi_buffer=3):
+def crop_image(img_fname, mask_fname=None, crop_out_fname=None, roi_coords=None, roi_buffer=3):
     """
     Crop an input image (3d or 4d) by image mask (1 = region to include in cropped file)
     :param img_fname:
@@ -29,14 +29,13 @@ def crop_image(img_fname,mask_fname=None,crop_out_fname=None, roi_coords=None, r
 
     crop_d,roi_coords = crop_to_roi(d, roi_buffer=roi_buffer, roi_coords=roi_coords, data_4d=True)
 
-    #
     #adapted from nilearn.image.crop_image (https://github.com/nilearn/nilearn/blob/master/nilearn/image/image.py)
     linear_part = a[:3, :3]
     old_origin = a[:3, 3]
     slices = [slice(s, e) for s, e in roi_coords] #convert to slice object
-    new_origin_voxel = np.array([s.start for s in slices]) #convert back to origin location
-    new_origin = old_origin + linear_part.dot(new_origin_voxel)
-
+    new_origin_voxel = np.array([s.start for s in slices]) #convert back to origin location #TODO, simplify?
+    #new_origin = old_origin + linear_part.dot(new_origin_voxel)
+    new_origin = old_origin + linear_part.dot(np.array(roi_coords)[:,0]) #convert to new 0 location
     new_a = np.eye(4)
     new_a[:3, :3] = linear_part
     new_a[:3, 3] = new_origin
@@ -47,7 +46,7 @@ def crop_image(img_fname,mask_fname=None,crop_out_fname=None, roi_coords=None, r
     else:
         import nibabel as nb
         img=nb.Nifti1Image(crop_d,new_a,header=h)
-        return img, crop_d, roi_coords
+        return crop_d, new_a
 
 
 #adapted code from nilearn for smoothing a dataset, rather than an img
