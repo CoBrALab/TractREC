@@ -32,9 +32,7 @@ def crop_image(img_fname, mask_fname=None, crop_out_fname=None, roi_coords=None,
     #adapted from nilearn.image.crop_image (https://github.com/nilearn/nilearn/blob/master/nilearn/image/image.py)
     linear_part = a[:3, :3]
     old_origin = a[:3, 3]
-    slices = [slice(s, e) for s, e in roi_coords] #convert to slice object
-    new_origin_voxel = np.array([s.start for s in slices]) #convert back to origin location #TODO, simplify?
-    #new_origin = old_origin + linear_part.dot(new_origin_voxel)
+
     new_origin = old_origin + linear_part.dot(np.array(roi_coords)[:,0]) #convert to new 0 location
     new_a = np.eye(4)
     new_a[:3, :3] = linear_part
@@ -42,11 +40,7 @@ def crop_image(img_fname, mask_fname=None, crop_out_fname=None, roi_coords=None,
 
     if crop_out_fname is not None:
         niiSave(crop_out_fname,crop_d,new_a,header=h)
-        return crop_d, roi_coords
-    else:
-        import nibabel as nb
-        img=nb.Nifti1Image(crop_d,new_a,header=h)
-        return crop_d, new_a
+    return crop_d, new_a
 
 
 #adapted code from nilearn for smoothing a dataset, rather than an img
