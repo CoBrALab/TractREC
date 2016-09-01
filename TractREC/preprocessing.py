@@ -29,10 +29,12 @@ def crop_image(img_fname,mask_fname=None,crop_out_fname=None, roi_coords=None, r
 
     crop_d,roi_coords = crop_to_roi(d, roi_buffer=roi_buffer, roi_coords=roi_coords, data_4d=True)
 
+    #
     #adapted from nilearn.image.crop_image (https://github.com/nilearn/nilearn/blob/master/nilearn/image/image.py)
     linear_part = a[:3, :3]
     old_origin = a[:3, 3]
-    new_origin_voxel = np.array(roi_coords)
+    slices = [slice(s, e) for s, e in roi_coords] #convert to slice object
+    new_origin_voxel = np.array([s.start for s in slices]) #convert back to origin location
     new_origin = old_origin + linear_part.dot(new_origin_voxel)
 
     new_a = np.eye(4)
