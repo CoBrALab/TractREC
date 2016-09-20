@@ -65,7 +65,7 @@ def create_dir(some_directory):
     """
     import os
     if not os.path.exists(some_directory):
-        os.mkdirs(some_directory)
+        os.makedirs(some_directory)
 
 
 def natural_sort(l):
