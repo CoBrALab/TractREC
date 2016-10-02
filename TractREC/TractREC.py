@@ -1054,7 +1054,8 @@ def skeletonise_volume(vol_fname, threshold_type='percentage', threshold_val=0.2
 def get_distance_shell(data, direction = 'outer', distance_method='edt',start_distance=0, stop_distance=1, return_as_distance=False, reset_zero_distance = False):
     """
     Calculates a distance metric on the provided binary data, limits it within start_distance and stop_distance to produce a shell.
-    Calculated in voxel units. If stop_distance - start_distance < 1, then there will likely be holes in the shell
+    Calculated in voxel units.
+    If stop_distance - start_distance < 1, then there will likely be holes in the shell
 
     :param data:                numpy.array of binary data {0,1}
     :param direction:           direction for distance function 'outer' increases from region boundary to limits of volume, 'inner' from region boundary to center
@@ -1098,7 +1099,7 @@ def get_distance_shell(data, direction = 'outer', distance_method='edt',start_di
         print('You have set your stop_distance greater than the possible distance')
     if start_distance > np.max(np.unique(data_dist)):
         print("You have set your start_distance greater than the maximum distance, where distance range = %.2f - %.2f") %(np.min(np.unique(data_dist)),np.max(np.unique(data_dist)))
-        print("This results a volume filled with 0s. Have fun with that.")
+        print("This results in a volume filled with 0s. Have fun with that.")
 
     data_dist[data_dist<start_distance] = 0
     if stop_distance is not None:
