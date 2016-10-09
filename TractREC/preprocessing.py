@@ -463,7 +463,7 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
 def run_amico_noddi_dipy_v2(subject_root_dir,dwi_fnames,brain_mask_fnames,bvals_fnames,bvecs_fnames,out_root_dir,subject_dirs=None,b0_thr=0, bStep=[0,1000,2000,3000],nthreads=8,mem=2.5,CLOBBER=False,SUBMIT=False):
     """
     Updated version to take in params individually so that you can store the files however you want to.
-    
+
     :param subject_root_dir:
     :param dwi_fnames:
     :param brain_mask_fnames:
@@ -560,7 +560,7 @@ def run_amico_noddi_dipy_v2(subject_root_dir,dwi_fnames,brain_mask_fnames,bvals_
         code.append("ae.save_results()")
 
         #return code
-        py_sub_full_fname=create_python_exec(out_dir=out_dir,code=code,name='NOD_'+ID)
+        py_sub_full_fname=create_python_exec(out_dir=out_root_dir,code=code,name='NOD_'+ID) #set output_dir outside of the dir where NODDI will write, because it clears the dir!
         if CLOBBER:
             print("Creating submission files and following your instructions for submission to que. (CLOBBER=True)"),
             print(" (SUBMIT=" + str(SUBMIT)+")")
