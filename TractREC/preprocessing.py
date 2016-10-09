@@ -500,7 +500,7 @@ def run_amico_noddi_dipy_v2(subject_root_dir,dwi_fnames,brain_mask_fnames,bvals_
         bvals_fnames = [bvals_fnames] #just to keep the same calling as the other lists, convert to list of one
         single_bvals = True
     if isinstance(bvecs_fnames, basestring):
-        bvals_fnames = [bvals_fnames]
+        bvecs_fnames = [bvecs_fnames]
         single_bvecs = True
     #amico.core.setup()
     for idx,dwi_fname in enumerate(dwi_fnames):    #ID is the subdirectory off of subject_root_dir that contains each subject
@@ -520,7 +520,6 @@ def run_amico_noddi_dipy_v2(subject_root_dir,dwi_fnames,brain_mask_fnames,bvals_
         #dwi_fname=os.path.join(subject_root_dir,ID,"data.nii.gz")
         #bvals_fname=os.path.join(subject_root_dir,ID,"bvals")
         #bvecs_fname=os.path.join(subject_root_dir,ID,"bvecs")
-
         if single_bvals:
             bvals_fname = bvals_fnames[0]
         else:
@@ -529,7 +528,7 @@ def run_amico_noddi_dipy_v2(subject_root_dir,dwi_fnames,brain_mask_fnames,bvals_
             bvecs_fname = bvecs_fnames[0]
         else:
             bvecs_fname = bvecs_fnames[idx]
-
+	ID = os.path.basename(dwi_fname).split(".")[0]
         scheme_fname=os.path.join(os.path.dirname(bvals_fname),"bvals_bvecs_sanitised.scheme")
         mask_fname=brain_mask_fnames[idx]
         out_dir=os.path.join(out_root_dir)
