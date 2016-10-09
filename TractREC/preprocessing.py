@@ -460,7 +460,7 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
                             description="NODDI estimation with AMICO",SUBMIT=SUBMIT)
         print(py_sub_full_fname)
 
-def run_amico_noddi_dipy_v2(dwi_fnames,brain_mask_fnames,bvals_fnames,bvecs_fnames,out_root_dir,subject_dirs=None,b0_thr=0, bStep=[0,1000,2000,3000],nthreads=8,mem=2.5,CLOBBER=False,SUBMIT=False):
+def run_amico_noddi_dipy_v2(subject_root_dir,dwi_fnames,brain_mask_fnames,bvals_fnames,bvecs_fnames,out_root_dir,subject_dirs=None,b0_thr=0, bStep=[0,1000,2000,3000],nthreads=8,mem=2.5,CLOBBER=False,SUBMIT=False):
     """
     updated version to take in all params
     :param subject_root_dir:
@@ -489,10 +489,10 @@ def run_amico_noddi_dipy_v2(dwi_fnames,brain_mask_fnames,bvals_fnames,bvecs_fnam
     #spams required by amico, along with specific numpy version (1.10 has a fortran issue that crops up here)
     sys.path.append(spams_path) #EW! TODO: make me permanent at some point...
 
-    if subject_dirs is None:
-        #subject_dirs=['100307'] #TODO, create a list of subjects from the subject_root_dir
-        subject_dirs=os.listdir(subject_root_dir)
-        if "kernels" in subject_dirs: subject_dirs.remove("kernels") #don't try to do this for the kernels directory, which AMICO hard-codes here
+#    if subject_dirs is None:
+#        #subject_dirs=['100307'] #TODO, create a list of subjects from the subject_root_dir
+#        subject_dirs=os.listdir(subject_root_dir)
+#        if "kernels" in subject_dirs: subject_dirs.remove("kernels") #don't try to do this for the kernels directory, which AMICO hard-codes here
 
     if isinstance(dwi_fnames, basestring):
         dwi_fnames=[dwi_fnames]
