@@ -61,7 +61,7 @@ def niiSave(full_fileName, data, aff, header=None, data_type='float32', CLOBBER=
 def create_dir(some_directory):
     """
     Create directory recursively if it does not exist
-      - uses os.makedirs
+       uses os.makedirs
     """
     import os
     if not os.path.exists(some_directory):
