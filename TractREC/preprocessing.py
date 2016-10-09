@@ -460,6 +460,114 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
                             description="NODDI estimation with AMICO",SUBMIT=SUBMIT)
         print(py_sub_full_fname)
 
+def run_amico_noddi_dipy_v2(dwi_fnames,brain_mask_fnames,bvals_fnames,bvecs_fnames,out_root_dir,subject_dirs=None,b0_thr=0, bStep=[0,1000,2000,3000],nthreads=8,mem=2.5,CLOBBER=False,SUBMIT=False):
+    """
+    updated version to take in all params
+    :param subject_root_dir:
+    :param out_root_dir:
+    :param subject_dirs:
+    :param b0_thr:
+    :param bStep:
+    :param nthreads:
+    :param mem:
+    :param CLOBBER:
+    :param SUBMIT:
+    :return:
+    """
+    #No... requires closer to 36GB for the HCP data
+    #when requesting cores, select 24 and take the whole memory (time it...)
+    #currently requires the compiled version of spams that I have installed locally
+    import os
+    import sys
+    from TractREC import create_dir
+    spams_path='/home/cic/stechr/Documents/code/spams-python'
+    import spams #this is added here so that the requirements.txt is updated
+    import amico #this is added here so that the requirements.txt is updated
+    #working_amico_path='/home/cic/stechr/Documents/code/amico_cjs/AMICO/python/amico'
+    caller_path=os.path.dirname(os.path.abspath(__file__)) #path to this script, so we can add it to a sys.addpath statement
+    #caller_path="caller_path_test"
+    #spams required by amico, along with specific numpy version (1.10 has a fortran issue that crops up here)
+    sys.path.append(spams_path) #EW! TODO: make me permanent at some point...
+
+    if subject_dirs is None:
+        #subject_dirs=['100307'] #TODO, create a list of subjects from the subject_root_dir
+        subject_dirs=os.listdir(subject_root_dir)
+        if "kernels" in subject_dirs: subject_dirs.remove("kernels") #don't try to do this for the kernels directory, which AMICO hard-codes here
+
+    if isinstance(dwi_fnames, basestring):
+        dwi_fnames=[dwi_fnames]
+    if isinstance(bvals_fnames, basestring):
+        bvals_fnames = [bvals_fnames] #just to keep the same calling as the other lists, convert to list of one
+        single_bvals = True
+    if isinstance(bvecs_fnames, basestring):
+        bvals_fnames = [bvals_fnames]
+        single_bvecs = True
+    #amico.core.setup()
+    for idx,dwi_fname in enumerate(dwi_fnames):    #ID is the subdirectory off of subject_root_dir that contains each subject
+
+        """
+        ae=amico.Evaluation(subject_root_dir,ID)
+        amico.util.fsl2scheme(bvals_fname, bvecs_fname,scheme_fname,bStep)
+        #ae.load_data(dwi_filename=dwi_fname,scheme_filename=scheme_fname,mask_filename=mask_fname,b0_thr=bo_thresh) #loading takes tabout 4-5 mins (HCP), and about 8gb
+        ae.load_data(dwi_filename='data.nii.gz',scheme_filename='sanitised.scheme',mask_filename='nodif_brain_mask.nii.gz',b0_thr=0)
+        ae.set_model("NODDI")
+        ae.generate_kernels() #single core only, 2.5mins (HCP), apparently only needs to be done once if all data was acquired the same way (loading fits to the bvecs) - not impractical to do it every time, since I don't see a way to save it
+        ae.load_kernels() #resamples the LUT for this subject - looks to use a lot of mem...and will use available cores - 2.5mins on 8
+        ae.fit() #numpy version 1.10.0 will not work, uses all cores and about 8GB for HCP data
+        ae.save_results()
+        #move to proper output directory so that we keep with our processing stream
+        """
+        #dwi_fname=os.path.join(subject_root_dir,ID,"data.nii.gz")
+        #bvals_fname=os.path.join(subject_root_dir,ID,"bvals")
+        #bvecs_fname=os.path.join(subject_root_dir,ID,"bvecs")
+
+        if single_bvals:
+            bvals_fname = bvals_fnames[0]
+        else:
+            bvals_fname = bvals_fnames[idx]
+        if single_bvecs:
+            bvecs_fname = bvecs_fnames[0]
+        else:
+            bvecs_fname = bvecs_fnames[idx]
+
+        scheme_fname=os.path.join(os.path.dirname(bvals_fname),"bvals_bvecs_sanitised.scheme")
+        mask_fname=brain_mask_fnames[idx]
+        out_dir=os.path.join(out_root_dir)
+        create_dir(out_dir)
+
+        #bStep=[0,1000,2000,3000]
+        #b0_thr=0
+        model="NODDI"
+
+        code=["#!/usr/bin/python","","import sys","sys.path.append('{0}')".format(caller_path),"sys.path.append('{0}')".format(spams_path),"import spams","import amico"]
+        code.append("import spams" )
+        code.append("")
+        code.append("print amico.__file__")
+        code.append("amico.core.setup()")
+        code.append("ae=amico.Evaluation('{subject_root_dir}','{ID}',output_path='{output_dir}')".format(subject_root_dir=subject_root_dir,ID=ID,output_dir=out_dir))
+        code.append("amico.util.fsl2scheme('{bvals_fname}', '{bvecs_fname}','{scheme_fname}',{bStep})".format(bvals_fname=bvals_fname, bvecs_fname=bvecs_fname,scheme_fname=scheme_fname,bStep=bStep))
+        code.append("ae.load_data(dwi_filename='{dwi_fname}',scheme_filename='{scheme_fname}',mask_filename='{mask_fname}',b0_thr={b0_thr})".format(dwi_fname=dwi_fname,scheme_fname=scheme_fname,mask_fname=mask_fname,b0_thr=b0_thr))
+        code.append("ae.set_model('{model}')".format(model=model))
+        code.append("ae.set_config('OUTPUT_path','{OUTPUT_path}')".format(OUTPUT_path=out_dir))
+        code.append("ae.generate_kernels()") #single core only, 2.5mins (HCP), apparently only needs to be done once if all data was acquired the same way (loading fits to the bvecs) - not impractical to do it every time, since I don't see a way to save it
+        code.append("ae.load_kernels()") #resamples the LUT for this subject - looks to use a lot of mem...and will use available cores - 2.5mins on 8
+        code.append("ae.fit()") #fit the model
+        code.append("ae.save_results()")
+
+        #return code
+        py_sub_full_fname=create_python_exec(out_dir=out_dir,code=code,name='NOD_'+ID)
+        if CLOBBER:
+            print("Creating submission files and following your instructions for submission to que. (CLOBBER=True)"),
+            print(" (SUBMIT=" + str(SUBMIT)+")")
+            submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='NOD_'+ID,nthreads=nthreads,mem=mem,outdir=out_dir,
+                            description="NODDI estimation with AMICO",SUBMIT=SUBMIT)
+        else:
+            print("Creating submission files and following your instructions for submission to que. (CLOBBER=False)")
+            print(" (SUBMIT=" + str(SUBMIT)+")")
+            submit_via_qsub(template_text=None,code="python " + py_sub_full_fname,name='NOD_'+ID,nthreads=nthreads,mem=mem,outdir=out_dir,
+                            description="NODDI estimation with AMICO",SUBMIT=SUBMIT)
+        print(py_sub_full_fname)
+
 def interp_discrete_hist_peaks(input_fname, output_fname=None, value_count_cutoff=50):
     """
     Detects peaks in histogram of input image where the number of voxels is greater than value_count_cutoff, brings in the 
