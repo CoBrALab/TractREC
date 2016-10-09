@@ -462,8 +462,13 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
 
 def run_amico_noddi_dipy_v2(subject_root_dir,dwi_fnames,brain_mask_fnames,bvals_fnames,bvecs_fnames,out_root_dir,subject_dirs=None,b0_thr=0, bStep=[0,1000,2000,3000],nthreads=8,mem=2.5,CLOBBER=False,SUBMIT=False):
     """
-    updated version to take in all params
+    Updated version to take in params individually so that you can store the files however you want to.
+    
     :param subject_root_dir:
+    :param dwi_fnames:
+    :param brain_mask_fnames:
+    :param bvals_fnames:
+    :param bvecs_fnames:
     :param out_root_dir:
     :param subject_dirs:
     :param b0_thr:
@@ -474,7 +479,7 @@ def run_amico_noddi_dipy_v2(subject_root_dir,dwi_fnames,brain_mask_fnames,bvals_
     :param SUBMIT:
     :return:
     """
-    #No... requires closer to 36GB for the HCP data
+     #No... requires closer to 36GB for the HCP data
     #when requesting cores, select 24 and take the whole memory (time it...)
     #currently requires the compiled version of spams that I have installed locally
     import os
