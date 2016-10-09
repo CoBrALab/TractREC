@@ -528,10 +528,11 @@ def run_amico_noddi_dipy_v2(subject_root_dir,dwi_fnames,brain_mask_fnames,bvals_
             bvecs_fname = bvecs_fnames[0]
         else:
             bvecs_fname = bvecs_fnames[idx]
-	ID = os.path.basename(dwi_fname).split(".")[0]
+
+	    ID = os.path.basename(dwi_fname).split(".")[0]
         scheme_fname=os.path.join(os.path.dirname(bvals_fname),"bvals_bvecs_sanitised.scheme")
         mask_fname=brain_mask_fnames[idx]
-        out_dir=os.path.join(out_root_dir)
+        out_dir=os.path.join(out_root_dir,ID)
         create_dir(out_dir)
 
         #bStep=[0,1000,2000,3000]
