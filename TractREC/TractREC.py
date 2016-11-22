@@ -892,9 +892,9 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
 
                 #remove any None values, so that pandas treats it properly when writing to csv
                 if thresh_mask_fname is None:
-                    thresh_file = "None"
+                    thresh_mask_fname = "None"
                 if ROI_mask_fname is None:
-                    ROI_mask = "None"
+                    ROI_mask_fname = "None"
 
                 # now put the data into the rows:
                 df_4d.loc[idx, 'ID'] = str(ID)  # XXX there should be a more comprehensive solution to this
