@@ -274,7 +274,9 @@ def map_values_to_label_file(values_label_lut_csv_fname, label_img_fname,
                              MATCH_VALUE_TO_LABEL_VIA_MATRIX=False):
     """
     Map from values/index dataframe to labels in label_fname (for visualising results in label space)
-    
+
+    #TODO: for some reason this doesn't always work -- you will need to look into it to make sure that it works when the .nii file has MORE indices than you expect given the matrix
+
     :param values_label_lut_csv_fname: csv file mapping values to index in label_img_fname
     :param label_img_fname: label file (nii or other)
     :param out_mapped_label_fname: ouptut file name (nii/nii.gz only)
