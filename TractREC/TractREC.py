@@ -354,7 +354,9 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
          - ROI_mask_fname               3D binary mask for selecting only this region for extraction (where mask=1)
          - thresh_val:                  upper value for thresholding thresh_mask_fname, values above/below this are set to 0
          - thresh_type:                 {'upper' = > thresh_val = 0,'lower' < thresh_val = 0}
-         - result:                      specification of what output you require {'all','data','mean','median','std','min','max'}
+         - result:                      specification of what output you require {'all','data','mean','median','std','min','max','sum'}
+                                        - sum is the non-zero sum of all metric voxels in the mask, multiplied by voxel volume
+                                        - (i.e., appx the same as the value provided by SUIT if used on VBM data)
          - label_subset:                list of label values to report stats on
          - SKIP_ZERO_LABEL:             skip where label_val==0 {True,False} (usually the background label)  - XXX probably does not work properly when False :-/
          - nonzero_stats:               calculate without 0s in img_fname, or with {True,False}
@@ -380,7 +382,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
 
     class return_results(object):
         # output results as an object with these values
-        def __init__(self, label_val, data, vox_coord, volume, mean, median, std, minn, maxx, settings):
+        def __init__(self, label_val, data, vox_coord, volume, mean, median, std, minn, maxx, sum, settings):
             self.label_val = np.array(label_val)
             self.data = np.array(data)
             self.vox_coord = np.array(vox_coord)
@@ -390,6 +392,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
             self.std = np.array(std)
             self.minn = np.array(minn)
             self.maxx = np.array(maxx)
+            self.sum = np.array(sum)
             self.settings = settings
 
         def __str__(self):
@@ -404,10 +407,12 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
             std      : {std}
             maxx     : {maxx}
             minn     : {minn}
+            sum      : {sum}
             settings : file and parameter settings (dictionary)
             """
             return template_txt.format(label_val=self.label_val, data_len=len(self.data), volume=self.volume,
-                                       mean=self.mean, median=self.median, std=self.std, maxx=self.maxx, minn=self.minn)
+                                       mean=self.mean, median=self.median, std=self.std, maxx=self.maxx,
+                                       minn=self.minn, sum=self.sum)
 
     d_label_val = []
     d_data = []
@@ -418,6 +423,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
     d_std = []
     d_min = []
     d_max = []
+    d_sum = []
     d_settings = {'metric_fname': img_fname,
                   'label_fname': mask_fname,
                   'thresh_mask_fname': thresh_mask_fname,
@@ -433,6 +439,7 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
                   'USE_LABEL_RES': USE_LABEL_RES}
 
     d, daff, dr, dh = imgLoad(img_fname, RETURN_RES=True, RETURN_HEADER=True)
+
     if len(np.shape(d))>3:
         #we sent 4d data!
         if VERBOSE:
@@ -477,6 +484,8 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
             print(dr)
         # see if we need to resample the mask to the img
         if not np.array_equal(np.diagonal(maff), np.diagonal(daff)):
+            if VERBOSE:
+                print("   -->Resampling mask to image space with nearest neighbour interpolation. No registration performed.<--\n")
             mask = resample_img(mask_fname, daff, np.shape(d), interpolation='nearest').get_data()
 
         else:  # they are the same and we already loaded the data
@@ -576,9 +585,10 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         d_std.append(np.std(dx))
         d_min.append(np.min(dx))
         d_max.append(np.max(dx))
+        d_sum.append(np.sum(dx) * vox_vol) #sum over all non-zero and then multiply by per-vox volume to get an estimate of size
     if VERBOSE:
         print("")
-    results = return_results(d_label_val, d_data, d_vox_coord, d_volume, d_mean, d_median, d_std, d_min, d_max, d_settings)
+    results = return_results(d_label_val, d_data, d_vox_coord, d_volume, d_mean, d_median, d_std, d_min, d_max, d_sum, d_settings)
 
     if result == 'all':
         return results
@@ -596,6 +606,8 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
         return results.minn
     elif result == 'max':
         return results.maxx
+    elif result == 'sum':
+        return results.sum
 
 def extract_label_volume(label_files,IDs=None, label_df=None,
                          label_subset_idx=None, label_tag="label_",
@@ -656,9 +668,11 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         - label_df          - pandas dataframe of label index (index) and description (label_id)
         - label_subset_idx  - list of label indices that you want to extract data from [10, 200, 30]
         - label_tag         - string that will precede the label description in the column header
-        - metric            - metric to extract {'all','mean','median','std','volume','vox_count','data'}
+        - metric            - metric to extract {'all','mean','median','std','volume','vox_count','data','sum'}
                             - if you select 'data', an additional list of lists will be returned
                             - such that list[0]=voxel values list[1]=voxel coordinates
+                            - sum is the non-zero sum of all metric voxels in the mask, multiplied by voxel volume
+                            - (i.e., appx the same as the value provided by SUIT if used on VBM data)
         - thresh_mask_files - list of files for additional thresholding (again, same restrictions as label_files)
         - ROI_mask_files    - binary mask file(s) denoting ROI for extraction =1
         - thresh_val        - value for thresholding
@@ -737,6 +751,8 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         else:
             for idx, label_id in enumerate(label_subset_idx):
                 col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + metric_txt
+                #TODO: this assumes that the index is set properly, which it might not be in all cases (label_df.set_index("index") - if it is not set properly then the label may not match with the index in all cases
+                #col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_df.index == label_id].Label + "_" + metric_txt
                 cols.append(col_name)
             df_4d = pd.DataFrame(columns=cols)
     else: #we want all the metrics, so we need to create the columns for all of them
@@ -748,6 +764,9 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 cols.append(col_name)
             for idx, label_id in enumerate(label_subset_idx):
                 col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + "median"
+                cols.append(col_name)
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + "sum"
                 cols.append(col_name)
             for idx, label_id in enumerate(label_subset_idx):
                 col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + "std"
@@ -765,6 +784,9 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 cols.append(col_name)
             for idx, label_id in enumerate(label_subset_idx):
                 col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + "median"
+                cols.append(col_name)
+            for idx, label_id in enumerate(label_subset_idx):
+                col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + "sum"
                 cols.append(col_name)
             for idx, label_id in enumerate(label_subset_idx):
                 col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + "std"
@@ -912,7 +934,8 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                     df_4d.loc[idx, 7+2*len(label_subset_idx):7+3*len(label_subset_idx)] = res.std
                     df_4d.loc[idx, 7+3*len(label_subset_idx):7+4*len(label_subset_idx)] = res.volume
                     df_4d.loc[idx, 7+4*len(label_subset_idx):7+5*len(label_subset_idx)] = [len(a_idx) for a_idx in res.data]  # gives num vox
-#                elif metric is 'data':
+                    df_4d.loc[idx, 7+5*len(label_subset_idx):7+6*len(label_subset_idx)] = res.sum  # gives num vox
+                #                elif metric is 'data':
 #                    data_string_list=[None]*len(res.data)
 #                    for string_list_idx,res_data_single_sub in enumerate(res.data):
 #                        data_string=""
@@ -933,6 +956,8 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                     df_4d.loc[idx, 7::] = res.volume
                 elif metric is 'vox_count':
                     df_4d.loc[idx, 7::] = [len(a_idx) for a_idx in res.data]  # gives num vox
+                elif metric is 'sum':
+                    df_4d.loc[idx, 7::] = res.sum
                 else:
                     print("Incorrect metric selected.")
                     return
