@@ -651,7 +651,7 @@ def extract_label_volume(label_files,IDs=None, label_df=None,
     return df
 
 def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=None, label_subset_idx=None,
-                                label_tag="label_", metric='all',
+                                label_tag="label_", metric='all', label_idx_colname = None,
                                 thresh_mask_files=None, ROI_mask_files=None, thresh_val=None, max_val=None,
                                 thresh_type=None, erode_vox=None, zfill_num=3,
                                 DEBUG_DIR=None, VERBOSE=False,
@@ -665,7 +665,8 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
         - metric_files      - list of files for the metric that you are extracting
         - label_files       - list of label files matched to each file in metric_files (currently restricted to ID at the beginning of file name ==> ID_*)
         - IDs               - list of IDs for matching files - no easy way to get around this :-/
-        - label_df          - pandas dataframe of label index (index) and description (label_id)
+        - label_df          - pandas dataframe of label index (index set with pd.set_index) and description (Label)
+                            - either explicitly set the index with pd.set_index("myIndexColName") or provide one with label_idx_colname
         - label_subset_idx  - list of label indices that you want to extract data from [10, 200, 30]
         - label_tag         - string that will precede the label description in the column header
         - metric            - metric to extract {'all','mean','median','std','volume','vox_count','data','sum'}
@@ -749,10 +750,15 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 cols.append(col_name)
             df_4d = pd.DataFrame(columns=cols)
         else:
+            if label_idx_colname is not(None): #if they did not explicitly
+                label_df.set_index(label_idx_colname)
+                print("Using column '" + label_idx_colname + "' as index column name.")
+            else:
+                print("You did not select a label_idx_colname for your labels, we assume that you have already used pd.set_index('AppropriateIndex')\n-->Failing to do so will result in errors<--")
+                if VERBOSE:
+                    print(" The numeric label indices may not match properly to the labels (in fact, they will only match in one special case), and the code may crash because of looping out of bounds.")
             for idx, label_id in enumerate(label_subset_idx):
                 col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_id].Label + "_" + metric_txt
-                #TODO: this assumes that the index is set properly, which it might not be in all cases (label_df.set_index("index") - if it is not set properly then the label may not match with the index in all cases
-                #col_name = label_tag + str(label_id).zfill(zfill_num) + "_" + label_df.loc[label_df.index == label_id].Label + "_" + metric_txt
                 cols.append(col_name)
             df_4d = pd.DataFrame(columns=cols)
     else: #we want all the metrics, so we need to create the columns for all of them
