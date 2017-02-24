@@ -4,7 +4,8 @@ Created on Thu Oct 22 10:07:32 2015
 
 @author: Christopher J Steele (except for one that I took from stackoverflow ;-))
 """
-
+import utils as utils
+import preprocessing as preproc
 
 def imgLoad(full_fileName, RETURN_RES=False, RETURN_HEADER=False):
     """

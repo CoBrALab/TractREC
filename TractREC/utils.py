@@ -50,7 +50,7 @@ def mask2labels(mask_img, out_file = None):
     Convert simple binary mask to voxels that are labeled from 1..n.
     Outputs as uint32 in the hopes that you don't have over the max (4294967295)
     (i don't check, that is a crazy number of voxels!)
-    :param mask_img:        any 3d image in format
+    :param mask_img:        any 3d image format that nibabel can read
     :param out_file:        nift1 format
     :return:
     """
@@ -62,7 +62,7 @@ def mask2labels(mask_img, out_file = None):
         out_file = os.path.join(os.path.dirname(mask_img),os.path.basename(mask_img).split(".")[0]+"_labels.nii.gz")
 
     img = nb.loadsave.load(mask_img)
-    d = img.get_data()
+    d = img.get_data().astype(np.uint32)
     aff = img.affine
     header = img.header
 
@@ -73,7 +73,7 @@ def mask2labels(mask_img, out_file = None):
         d[vox[0], vox[1], vox[2]] = idx
         idx += 1
 
-    img_out = nb.Nifti1Image(d.astype(np.uint32), aff, header=header)
+    img_out = nb.Nifti1Image(d, aff, header=header)
     img_out.set_data_dtype("uint32")
     print("Max label value/num voxels: %d", idx)
     nb.loadsave.save(img_out,out_file)
