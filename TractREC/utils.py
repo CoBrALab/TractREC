@@ -64,8 +64,13 @@ def cube_mask_test(mask_img, cubed_subset_dim):
 
     cubed_3d = get_cubed_array_labels_3d(np.shape(d), cubed_subset_dim).astype(np.uint32)
     d = np.multiply(d, cubed_3d) # apply the cube to the data
-    for idx,val in enumerate(np.unique(d)):
-        d[d==val] = idx
+
+    #extremely fast way to replace values, suggested here: http://stackoverflow.com/questions/13572448/change-values-in-a-numpy-array
+    palette = np.unique(d)
+    key = np.arange(0,len(palette))
+    index = np.digitize(d.ravel(), palette, right=True)
+    d = key[index].reshape(d.shape)
+
     print(str(np.max(d))+ " unique labels")
     img = nb.Nifti1Image(d,aff,header)
     img.set_data_dtype("uint32")
@@ -108,9 +113,17 @@ def mask2labels_multifile(mask_img, out_file_base = None, max_num_labels_per_mas
     if cubed_subset_dim is not None:
         cubed_3d = get_cubed_array_labels_3d(np.shape(d),cubed_subset_dim)
         d = np.multiply(d, cubed_3d).astype(np.uint32) #apply the cube to the data
-        #print(np.unique(d))
-        for idx, val in enumerate(np.unique(d)):
-            d[d==val] = idx + start_idx #move back to values based on start_idx (usually 1)
+        # #print(np.unique(d))
+        # for idx, val in enumerate(np.unique(d)):
+        #     d[d==val] = idx + start_idx #move back to values based on start_idx (usually 1)
+
+        #extremely fast way of re-assigning values
+        palette = np.unique(d)
+        key = np.arange(0, len(palette)) + start_idx - 1 #offset as required
+        key[0] = 0 #retain 0 as the first index, since this is background
+        index = np.digitize(d.ravel(), palette, right=True)
+        d = key[index].reshape(d.shape)
+
         num_sub_arrays = int(np.ceil(max_num_labels_per_mask / 2)) #just use this value, since it is
         cube_label_idxs = np.array_split(np.unique(d),num_sub_arrays)
         d_orig = np.copy(d)
