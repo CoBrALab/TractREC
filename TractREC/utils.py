@@ -75,9 +75,9 @@ def cube_mask_test(mask_img, cubed_subset_dim):
     img = nb.Nifti1Image(d,aff,header)
     img.set_data_dtype("uint32")
     nb.save(img,out_file_base+".nii.gz")
-    img = nb.Nifti1Image(cubed_3d,aff,header)
-    img.set_data_dtype("uint32")
-    nb.save(img, out_file_base + "cubes.nii.gz")
+    # img = nb.Nifti1Image(cubed_3d,aff,header)
+    # img.set_data_dtype("uint32")
+    # nb.save(img, out_file_base + "_cubes.nii.gz")
     return out_file_base+".nii.gz"
 
 def mask2labels_multifile(mask_img, out_file_base = None, max_num_labels_per_mask = 1000, output_lut_file = False,
@@ -120,6 +120,7 @@ def mask2labels_multifile(mask_img, out_file_base = None, max_num_labels_per_mas
         #extremely fast way of re-assigning values
         palette = np.unique(d)
         key = np.arange(0, len(palette)) + start_idx - 1 #offset as required
+        key[0] = 0 #retain 0 as the first index, since this is background
         key[0] = 0 #retain 0 as the first index, since this is background
         index = np.digitize(d.ravel(), palette, right=True)
         d = key[index].reshape(d.shape)
@@ -175,7 +176,7 @@ def mask2labels_multifile(mask_img, out_file_base = None, max_num_labels_per_mas
 
     return out_file_names, out_file_lut_names, sub_vox_locs
 
-def get_cubed_array_labels_3d(shape, cube_dim = 100):
+def get_cubed_array_labels_3d(shape, cube_dim = 10):
     """
     Break a 3d array into cubes of cube_dim. Throw away extras if array is not a perfect cube
     :param shape:       - 3d matrix shape
@@ -190,7 +191,7 @@ def get_cubed_array_labels_3d(shape, cube_dim = 100):
     num_cubes_per_dim = np.ceil(max_dim / cube_dim).astype(int)
     d = np.zeros((max_dim,max_dim,max_dim))
 
-    #determine the size of each cube based on the number that we will cut the supercube into (yes, this is basically the reverse of above)
+    #determine the size of each cube based on the number of cubes that we will cut the supercube into (yes, this is basically the reverse of above)
     x_span = np.ceil(max_dim / num_cubes_per_dim).astype(int)
     y_span = x_span
     z_span = x_span
@@ -206,6 +207,16 @@ def get_cubed_array_labels_3d(shape, cube_dim = 100):
                 d[x0 : x0 + x_span, y0 : y0 + y_span, z0 : z0 + z_span] = cube_idx
     return (d[0:shape[0],0:shape[1],0:shape[2]]).astype(np.uint32) #return only the dims that we requested, discard the extras at the edges
 
+def gmwmvox2mesh(mask_img, mesh_format = "obj"):
+    from skimage import measure
+    import nibabel as nb
+    img = nb.load(mask_img)
+    d = img.get_data()
+    aff = img.affine
+    header = img.header
+
+    verts, faces = measure.marching_cubes(d,0)
+    return verts, faces
 
 def mask2labels(mask_img, out_file = None, output_lut_file = False, decimals = 2, start_idx = 1):
     """
