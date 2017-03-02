@@ -7,7 +7,6 @@ utility functions
 
 from __future__ import division  # to allow floating point calcs of number of voxels
 
-
 def mask2voxelList(mask_img, out_file = None, coordinate_space = 'scanner', mask_threshold = 0, decimals = 2):
     """
     Calculate coordinates for all voxels greater than mask threshold
@@ -49,13 +48,14 @@ def mask2voxelList(mask_img, out_file = None, coordinate_space = 'scanner', mask
         #return scanner_coord
     return out_file
 
-def cube_mask_test(mask_img, cubed_subset_dim):
+def cube_mask_test(mask_img, cubed_subset_dim, max_num_labels_per_mask = None, start_idx = 1, out_file_base = None):
     import nibabel as nb
     import numpy as np
-    import itertools
 
     import os
-    out_file_base = os.path.join(os.path.dirname(mask_img),os.path.basename(mask_img).split(".")[0]+"_index_label")
+    if out_file_base is None:
+        import os
+        out_file_base = os.path.join(os.path.dirname(mask_img),os.path.basename(mask_img).split(".")[0]+"_index_label")
 
     img = nb.loadsave.load(mask_img)
     d = img.get_data()
@@ -66,19 +66,55 @@ def cube_mask_test(mask_img, cubed_subset_dim):
     d = np.multiply(d, cubed_3d) # apply the cube to the data
 
     #extremely fast way to replace values, suggested here: http://stackoverflow.com/questions/13572448/change-values-in-a-numpy-array
-    palette = np.unique(d)
+    palette = np.unique(d) #INCLUDES 0
     key = np.arange(0,len(palette))
     index = np.digitize(d.ravel(), palette, right=True)
     d = key[index].reshape(d.shape)
 
+    unique = np.unique(d)
+    non_zero_labels = unique[np.nonzero(unique)]
+
     print(str(np.max(d))+ " unique labels")
+
+    if (max_num_labels_per_mask is not None) and (max_num_labels_per_mask < len(non_zero_labels)): #we cut things up
+        import itertools
+
+        all_out_files = []
+        num_sub_arrays = int(np.ceil(len(non_zero_labels) / (max_num_labels_per_mask / 2)))
+        cube_labels_split = np.array_split(non_zero_labels, num_sub_arrays)
+
+        all_sets = list(itertools.combinations(np.arange(0, num_sub_arrays), 2))
+        print("There are {} mask combinations to be created.".format(len(all_sets)))
+        #return all_sets, num_sub_arrays, cube_labels_split
+        for set in all_sets:
+            print(set)
+            superset = np.concatenate((cube_labels_split[set[0]], cube_labels_split[set[1]]), axis=0) #contains labels
+            d_temp = np.zeros(d.shape)
+            new_idx = start_idx
+
+            for label_idx in superset: #this is extremely slow :-(
+                d_temp[d == label_idx] = new_idx
+                new_idx +=1
+
+            tail = "_subset_" + str(set[0]) + "_" + str(set[1])
+            out_file = out_file_base + tail + ".nii.gz"
+            out_file_lut = out_file_base + tail + "_coords.csv"
+            print(out_file)
+            print(out_file_lut)
+
+            img_out = nb.Nifti1Image(d_temp.astype(np.uint64), aff, header=header)
+            img_out.set_data_dtype("uint64")
+            # print("Max label value/num voxels: {}".format(str(start_idx)))
+            nb.loadsave.save(img_out, out_file)
+            np.savetxt(out_file_lut, superset, delimiter=",", fmt="%d") #not the voxel locations, just the LUT TODO:change!
+            all_out_files.append(out_file)
+    else:
+        all_out_files = out_file_base+"_all.nii.gz"
     img = nb.Nifti1Image(d,aff,header)
-    img.set_data_dtype("uint32")
-    nb.save(img,out_file_base+".nii.gz")
-    # img = nb.Nifti1Image(cubed_3d,aff,header)
-    # img.set_data_dtype("uint32")
-    # nb.save(img, out_file_base + "_cubes.nii.gz")
-    return out_file_base+".nii.gz"
+    img.set_data_dtype("uint64")
+    nb.save(img,out_file_base+"_all.nii.gz")
+    print(out_file_base+"_all.nii.gz")
+    return all_out_files
 
 def mask2labels_multifile(mask_img, out_file_base = None, max_num_labels_per_mask = 1000, output_lut_file = False,
                           decimals = 2, start_idx = 1, coordinate_space = "scanner", cubed_subset_dim = None):
@@ -110,7 +146,8 @@ def mask2labels_multifile(mask_img, out_file_base = None, max_num_labels_per_mas
     all_vox_locs = np.array(np.where(d==1)).T
     num_vox = np.shape(all_vox_locs)[0]
 
-    if cubed_subset_dim is not None:
+    if cubed_subset_dim is not None and cubed_subset_dim > 1:
+        print("Generating cubed subsets of your binary input mask")
         cubed_3d = get_cubed_array_labels_3d(np.shape(d),cubed_subset_dim)
         d = np.multiply(d, cubed_3d).astype(np.uint32) #apply the cube to the data
         # #print(np.unique(d))
@@ -125,34 +162,38 @@ def mask2labels_multifile(mask_img, out_file_base = None, max_num_labels_per_mas
         index = np.digitize(d.ravel(), palette, right=True)
         d = key[index].reshape(d.shape)
 
-        num_sub_arrays = int(np.ceil(max_num_labels_per_mask / 2)) #just use this value, since it is
-        cube_label_idxs = np.array_split(np.unique(d),num_sub_arrays)
+        num_sub_arrays = int(np.ceil(max_num_labels_per_mask / 2)) #just use this value, since we will use the sub-arrays not individual voxels
+        cube_label_idxs = np.array_split(np.unique(d)[np.nonzero(np.unique(d))],num_sub_arrays)
         d_orig = np.copy(d)
+
     else: #we are doing this voxel-wise, go for whole hog!
         num_sub_arrays = int(np.ceil(num_vox / (max_num_labels_per_mask / 2)))
         sub_vox_locs = np.array_split(all_vox_locs, num_sub_arrays)
 
     out_file_names = []
     out_file_lut_names = []
+    all_sets = list(itertools.combinations(np.arange(0,num_sub_arrays),2))
+    print("Total number of combinations: {}".format(len(all_sets)))
 
-    for subset in itertools.combinations(np.arange(0,num_sub_arrays),2):
+    for subset in all_sets: #TODO: fix for cubed subsets, since it does not work :-(
         fir = subset[0]
         sec = subset[1]
         tail = "_label_subset_" + str(fir) + "_" + str(sec)
-        print(out_file_base)
-        print(tail)
         out_file = out_file_base + tail + ".nii.gz"
         out_file_lut = out_file_base + tail + "_coords.csv"
+        print(out_file)
+        print(out_file_lut)
 
         d[d > 0] = 0  # don't need this data array anymore, so zero it and re-use
         label_idx = start_idx
-
-        if cubed_subset_dim is not None:
+        #return d_orig, subset, all_sets, fir, sec, cube_label_idxs
+        if cubed_subset_dim is not None and cubed_subset_dim > 1:
             #we asked for cubes, so use them but have to refer to the volumetric cube data rather than the voxel locations
-            superset = np.concatenate((cube_label_idxs[fir], cube_label_idxs[sec]),axis = 0)
-            for cube_label_idx in cube_label_idxs:
-                d[d_orig==cube_label_idx] = label_idx
+            superset = np.concatenate((cube_label_idxs[fir], cube_label_idxs[sec]), axis = 0)
+            for superset_idx in superset:
+                d[d_orig == superset_idx] = label_idx
                 label_idx += 1
+            d = d.astype(np.uint64)
         else:
             superset = np.concatenate((sub_vox_locs[fir], sub_vox_locs[sec]), axis = 0)
             for vox in superset:
@@ -176,26 +217,27 @@ def mask2labels_multifile(mask_img, out_file_base = None, max_num_labels_per_mas
 
     return out_file_names, out_file_lut_names, sub_vox_locs
 
-def get_cubed_array_labels_3d(shape, cube_dim = 10):
+def get_cubed_array_labels_3d(shape, cube_subset_dim = 10):
     """
     Break a 3d array into cubes of cube_dim. Throw away extras if array is not a perfect cube
-    :param shape:       - 3d matrix shape
-    :param cube_dim:    - size, in voxels, of one side of cube
-    :return:            - matrix of labeled cubes (or appx) of size cube_dim*cube_dim*cube_dim
+    :param shape:              - 3d matrix shape
+    :param cube_subset_dim:    - size, in voxels, of one dimension of cube
+    :return:                   - matrix of labeled cubes (or appx) of size cube_dim*cube_dim*cube_dim
     """
     import numpy as np
 
 
     #we make the matrix cubic to make the calculations easier, toss out the extras at the end
     max_dim = np.max(shape)
-    num_cubes_per_dim = np.ceil(max_dim / cube_dim).astype(int)
+    num_cubes_per_dim = np.ceil(max_dim / cube_subset_dim).astype(int)
     d = np.zeros((max_dim,max_dim,max_dim))
 
     #determine the size of each cube based on the number of cubes that we will cut the supercube into (yes, this is basically the reverse of above)
     x_span = np.ceil(max_dim / num_cubes_per_dim).astype(int)
     y_span = x_span
     z_span = x_span
-    print(x_span)
+    print("Voxel span for single cube dimension: {}".format(x_span))
+
     cube_idx = 0
     for ix in np.arange(0, num_cubes_per_dim):
         for iy in np.arange(0, num_cubes_per_dim):
