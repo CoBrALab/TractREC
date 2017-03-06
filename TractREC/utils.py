@@ -153,7 +153,9 @@ def generate_cubed_masks(mask_img, cubed_subset_dim, max_num_labels_per_mask = N
     print(out_file_base+"_all.nii.gz")
     return all_out_files, all_out_files_luts
 
-def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_per_mask = None, start_idx = 1, out_file_base = None, zfill_num = 4):
+def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_per_mask = None, out_sub_dir = "cnctm",
+                            start_idx = 1, out_file_base = None, zfill_num = 4, coordinate_space = "scanner",
+                            coord_precision = 2, VERBOSE = True):
     """
     Generate cubes of unique indices to cover the entire volume, multiply them by your binary mask_img, then split up
     into multiple mask node files of no more than max_num_labels_per_mask (for mem preservation) and re-index each to
@@ -165,24 +167,35 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
     :param mask_img:
     :param cubed_subset_dim:
     :param max_num_labels_per_mask:
+    :param out_sub_dir:
     :param start_idx:
     :param out_file_base:
     :param zfill_num:                   number of 0s to pad indices with so that filenames look nice (always use natural sort, however!)
+    :param coordinate_space:            coordinate space for output of voxel locations (either apply transform {"scanner"} or voxel space {"voxel"}
     :return:
     """
+
     import nibabel as nb
     import numpy as np
 
     if out_file_base is None:
         out_file_base = mask_img.split(".")[0]+"_index_label"
 
+    if out_sub_dir is not None:
+        import os
+        out_dir = os.path.join(os.path.dirname(out_file_base), out_sub_dir)
+        if not os.path.exists(out_dir):
+            os.makedirs(out_dir)
+        out_file_base = os.path.join(out_dir, os.path.basename(out_file_base))
+        print(out_file_base)
     img = nb.loadsave.load(mask_img)
     d = img.get_data().astype(np.uint64)
     aff = img.affine
     header = img.header
 
-    #TODO: move saving of 0_0 superset .nii.gz and labels files up here - more logical control
+
     if cubed_subset_dim is not None:
+        print("Generating labels and LUT file for cubed indices. This may take a while if you have many indices.")  # TODO: make this faster
         cubed_3d = get_cubed_array_labels_3d(np.shape(d), cubed_subset_dim).astype(np.uint32)
         d = np.multiply(d, cubed_3d) # apply the cube to the data
 
@@ -191,6 +204,25 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
         key = np.arange(0,len(palette))
         index = np.digitize(d.ravel(), palette, right=True)
         d = key[index].reshape(d.shape)
+
+        lut = np.zeros((len(palette)-1,4)) #non-zero LUT
+
+        all_vox_locs = np.array(np.where(d>0)).T
+        all_vox_idx_locs = np.zeros((len(all_vox_locs),4))
+        all_vox_idx_locs[:,1:] = all_vox_locs
+        idx = 0
+        for vox in all_vox_locs:
+            all_vox_idx_locs[idx,0]=d[vox[0], vox[1], vox[2]]
+            idx += 1
+        for vox_idx_loc in all_vox_idx_locs:
+            idx = vox_idx_loc.flatten()[0].astype(int)  # will always be the first element of a flattened array
+            if vox_idx_loc.ndim == 1:
+                coord = vox_idx_loc[1:]
+            else:
+                coord = np.mean(vox_idx_loc[:, 1:], axis=0)
+            lut[idx-1,0] = idx #zero indexing for the array, but 1-based for my label indexes
+            lut[idx-1,1:] = coord
+        print("Completed generating LUT file for cubed indices.")
     else:
         all_vox_locs = np.array(np.where(d == 1)).T
         idx = start_idx
@@ -198,13 +230,27 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
             d[vox[0], vox[1], vox[2]] = idx
             idx += 1
         lut = np.zeros((np.shape(all_vox_locs)[0], np.shape(all_vox_locs)[1] + 1))
-        lut[:, 1:] = nb.affines.apply_affine(aff, all_vox_locs)
+        lut[:, 1:] = all_vox_locs
         lut[:, 0] = np.arange(1, np.shape(all_vox_locs)[0] + 1)
-        #np.savetxt(lut_file, lut, header="index,x_coord,y_coord,z_coord", delimiter=",", fmt="%." + str(decimals) + "f")
+
+    if coordinate_space == "scanner":
+        lut[:, 1:] = nb.affines.apply_affine(aff, lut[:, 1:])
+        lut_header = "index_label,x_coord_scan,y_coord_scan,z_coord_scan"
+    elif coordinate_space == "voxel":
+        lut[:, 1:] = all_vox_locs
+        lut_header = "index_label,x_coord_vox,y_coord_vox,z_coord_vox"
+
+
+    out_file_lut = out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_labels_lut_all.txt"
+    np.savetxt(out_file_lut, lut, header=lut_header, delimiter=",", fmt="%." + str(coord_precision) + "f")
+
+    img = nb.Nifti1Image(d, aff, header)
+    img.set_data_dtype("uint64")
+    nb.save(img, out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_all.nii.gz")
+    print(out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_all.nii.gz")
 
     unique = np.unique(d)
     non_zero_labels = unique[np.nonzero(unique)]
-    print(non_zero_labels)
     print(str(np.max(d))+ " unique labels (including 0)")
 
     if (max_num_labels_per_mask is not None) and (max_num_labels_per_mask < len(non_zero_labels)): #we cut things up
@@ -216,11 +262,12 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
 
         all_sets = list(itertools.combinations(np.arange(0, num_sub_arrays), 2))
         print("There are {} mask combinations to be created.".format(len(all_sets)))
-        #return all_sets, num_sub_arrays, cube_labels_split
+        idx = 0
         for set in all_sets:
+            idx += 1
+            print("\nGenerating set {0} of {1} sets".format(idx,len(all_sets)))
             superset = np.concatenate((cube_labels_split[set[0]], cube_labels_split[set[1]]), axis=0) #contains labels
             d_temp = np.zeros(d.shape)
-            new_idx = start_idx
 
             # this has been checked, and returns identical indices as with a simple loop
             all_idxs = np.copy(non_zero_labels)
@@ -232,37 +279,30 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
             d_temp = key[index].reshape(d.shape)
             d_temp[d==0] = 0 #0 ends up being set to 1 because of edge case, so set them all back to 0
 
-            # for label_idx in superset: #this is extremely slow :-(
-            #     d_temp[d == label_idx] = new_idx
-            #     new_idx +=1
-
             tail = "_subset_" + str(set[0]).zfill(zfill_num) + "_" + str(set[1]).zfill(zfill_num)
             out_file = out_file_base + tail + ".nii.gz"
             out_file_lut = out_file_base + tail + "_labels.txt"
-            print("\n"+"Subset includes {} non-zero labels.".format(len(superset)))
-            print(set)
-            print(out_file)
-            print(out_file_lut)
+            print("Subset includes {} non-zero labels.".format(len(superset)))
+            print("Set combination: {}".format(set))
+            if VERBOSE:
+                print(out_file)
+                print(out_file_lut)
 
             img_out = nb.Nifti1Image(d_temp.astype(np.uint64), aff, header=header)
             img_out.set_data_dtype("uint64")
-            # print("Max label value/num voxels: {}".format(str(start_idx)))
             nb.loadsave.save(img_out, out_file)
-            np.savetxt(out_file_lut, superset, delimiter=",", fmt="%d",header="value") #not the voxel locations, just the LUT TODO:change!
+            np.savetxt(out_file_lut, superset, delimiter=",", fmt="%d",header="index_label") #not the voxel locations, just the LUT TODO:change? requires change in matrix combination
             all_out_files.append(out_file)
             all_out_files_luts.append(out_file_lut)
     else:
-        all_out_files = out_file_base+"_subset_"+str(0).zfill(zfill_num)+"_"+str(0).zfill(zfill_num)+"_all.nii.gz"
-        all_out_files_luts = None
-    img = nb.Nifti1Image(d,aff,header)
-    img.set_data_dtype("uint64")
-    nb.save(img,out_file_base+"_subset_"+str(0).zfill(zfill_num)+"_"+str(0).zfill(zfill_num)+"_all.nii.gz")
-    print(out_file_base+"_all.nii.gz")
+        all_out_files = out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_all.nii.gz"
+        all_out_files_luts = out_file_lut
+
     return all_out_files, all_out_files_luts
 
 
 def do_it_all(tck_file, node_file, weight_file = None, out_mat_file=None):
-    # appx 5 hrs for dim=3, max labels=5k (without connectome generation
+    # appx 5 hrs for dim=3, max labels=5k (without combining the connectome)
     from scipy import io
     if out_mat_file is None:
         out_mat_file = node_file.split(".")[0] + "_all_cnctm_mat_complete.mtx"
