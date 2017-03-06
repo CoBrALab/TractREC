@@ -305,11 +305,12 @@ def do_it_all(tck_file, node_file, weight_file = None, out_mat_file=None):
     # appx 5 hrs for dim=3, max labels=5k (without combining the connectome)
     from scipy import io
     if out_mat_file is None:
-        out_mat_file = node_file.split(".")[0] + "_all_cnctm_mat_complete.mtx"
+        out_mat_file = node_file.split(".")[0] + "_all_cnctm_mat_complete"
     cubed_masks, cubed_mask_luts = generate_cubed_masks_v2(node_file,cubed_subset_dim=3,max_num_labels_per_mask=5000)
     connectome_files = tck2connectome_collection(tck_file, cubed_masks, weight_file=weight_file)
     mat = combine_connectome_matrices_sparse(connectome_files,cubed_mask_luts)
-    io.mmwrite(out_mat_file,mat)
+    io.mmwrite(out_mat_file + ".mtx", mat)
+    io.savemat(out_mat_file + ".mat", {'mat':mat})
     print("Full matrix stored to: {}".format(out_mat_file))
     return mat
 
