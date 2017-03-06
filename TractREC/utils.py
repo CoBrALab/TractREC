@@ -183,6 +183,10 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
 
     if out_sub_dir is not None:
         import os
+        if cubed_subset_dim is not None:
+            out_sub_dir = out_sub_dir + "_cubed_" + str(cubed_subset_dim)
+        if max_num_labels_per_mask is not None:
+            out_sub_dir = out_sub_dir + "_maxlabsPmask_" + str(max_num_labels_per_mask)
         out_dir = os.path.join(os.path.dirname(out_file_base), out_sub_dir)
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
@@ -298,20 +302,23 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
         all_out_files = out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_all.nii.gz"
         all_out_files_luts = out_file_lut
 
-    return all_out_files, all_out_files_luts
+    return all_out_files, all_out_files_luts, out_sub_dir
 
 
-def do_it_all(tck_file, node_file, weight_file = None, out_mat_file=None):
+def do_it_all(tck_file, mask_img, weight_file = None, cubed_subset_dim = 3, max_num_labels_per_mask = 5000, out_mat_file=None):
     # appx 5 hrs for dim=3, max labels=5k (without combining the connectome)
     from scipy import io
-    if out_mat_file is None:
-        out_mat_file = node_file.split(".")[0] + "_all_cnctm_mat_complete"
-    cubed_masks, cubed_mask_luts = generate_cubed_masks_v2(node_file,cubed_subset_dim=3,max_num_labels_per_mask=5000)
+    import os
+
+    cubed_masks, cubed_mask_luts, out_dir = generate_cubed_masks_v2(mask_img, cubed_subset_dim=cubed_subset_dim, max_num_labels_per_mask=max_num_labels_per_mask)
     connectome_files = tck2connectome_collection(tck_file, cubed_masks, weight_file=weight_file)
     mat = combine_connectome_matrices_sparse(connectome_files,cubed_mask_luts)
+    if out_mat_file is None:
+        out_mat_file = os.path.join(out_dir,os.path.basename(mask_img).split(".")[0] + "_all_cnctm_mat_complete")
+
     io.mmwrite(out_mat_file + ".mtx", mat)
     io.savemat(out_mat_file + ".mat", {'mat':mat})
-    print("Full matrix stored to: {}".format(out_mat_file))
+    print("Full matrix stored in: {} .mtx/.mat".format(out_mat_file))
     return mat
 
 def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_index_list, label_max = None, connectome_files_index_master = None): #TODO: does not currently work
@@ -350,6 +357,7 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
         # mat[lookup_row,lookup_col] = pd.read_csv(file, sep = " ", header = None).values
         # mat[mask] = pd.read_csv(file, sep = " ", header = None).values #THIS DOES NOT WORK, casts to 1d
         #return mat, lookup_row,lookup_col,pd.read_csv(file, sep = " ", header = None).values
+        #TODO: check to make sure that I am not overwriting any data here...? just to make sure that my indexing is working correclty...
         mat[np.ix_(lookup_row,lookup_col)]  = pd.read_csv(file, sep = " ", header = None).values #this works (tested on small sub-matrices) but not sure if all cases are covered?
     return mat
 
