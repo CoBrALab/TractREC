@@ -318,10 +318,10 @@ def do_it_all(tck_file, mask_img, weight_file = None, cubed_subset_dim = 3, max_
 
     io.mmwrite(out_mat_file + ".mtx", mat)
     io.savemat(out_mat_file + ".mat", {'mat':mat})
-    print("Full matrix stored in: {} .mtx/.mat".format(out_mat_file))
+    print("\nFull matrix stored in: {} .mtx/.mat".format(out_mat_file))
     return mat
 
-def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_index_list, label_max = None, connectome_files_index_master = None): #TODO: does not currently work
+def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_index_list, label_max = None, connectome_files_index_master = None):
     """
     Assumes that labels start at 1 and end at label_max, if set to None, we read through each index file and calculate it
     :param connectome_files_list:
@@ -342,16 +342,17 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
             label_idx = np.ndarray.flatten(pd.read_csv(file, header = 0).values) #read quickly, then break out of the array of arrays of dimension 1
             if np.max(label_idx) > label_max:
                 label_max = np.max(label_idx)
-    mat = sparse.lil_matrix((label_max+1,label_max+1)) #allow space for row and column IDs, and makes indexing super easy
-    mat[0, :] = np.arange(0, label_max + 1)[:,np.newaxis].T # column id
-    mat[:, 0] = np.arange(0, label_max + 1)[:,np.newaxis] # row id (labels)
+    mat = sparse.lil_matrix((label_max,label_max)) #allow space for row and column IDs, and makes indexing super easy
+    #mat[0, :] = np.arange(0, label_max + 1)[:,np.newaxis].T # column id
+    #mat[:, 0] = np.arange(0, label_max + 1)[:,np.newaxis] # row id (labels)
     print("Connectome combination from {0} files in progress:".format(len(connectome_files_list)))
 
     #assume that the file list and the index list are in the same order, now we can build the matrix - USE NATURAL SORT!
     for idx, file in enumerate(connectome_files_list):
         print("{0}:\n\tmatrix: {1}\n\tindex : {2}".format(idx+1,file,connectome_files_index_list[idx]))
         label_idx = np.ndarray.flatten(pd.read_csv(connectome_files_index_list[idx], header = 0).values)
-        lookup_col = np.in1d(mat[0,:].toarray(),label_idx)
+        #lookup_col = np.in1d(mat[0,:].toarray(),label_idx)
+        lookup_col = label_idx - 1 #assuming that the start index is 1, which is a bad assumption?
         lookup_row = lookup_col.T
         #mask = lookup_row[:,None]*lookup_col[None,:] #broadcast to create a 2d matrix of mat.shape with true where data will go
         # mat[lookup_row,lookup_col] = pd.read_csv(file, sep = " ", header = None).values
@@ -360,7 +361,6 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
         #TODO: check to make sure that I am not overwriting any data here...? just to make sure that my indexing is working correclty...
         mat[np.ix_(lookup_row,lookup_col)]  = pd.read_csv(file, sep = " ", header = None).values #this works (tested on small sub-matrices) but not sure if all cases are covered?
     return mat
-
 
 def combine_connectome_matrices(connectome_files_list, connectome_files_index_list, connectome_files_index_master = None):
     import pandas as pd
@@ -373,14 +373,14 @@ def combine_connectome_matrices(connectome_files_list, connectome_files_index_li
         if np.max(label_idx) > label_max:
             label_max = np.max(label_idx)
 
-    mat = np.zeros((label_max+1,label_max+1),dtype=np.uint64) #allow space for row and column IDs, and makes indexing super easy
-    mat[0, :] = np.arange(0, label_max + 1).T # column id
-    mat[:, 0] = np.arange(0, label_max + 1) # row id (labels)
+    mat = np.zeros((label_max,label_max),dtype=np.uint64) #allow space for row and column IDs, and makes indexing super easy
+    #mat[0, :] = np.arange(0, label_max + 1).T # column id
+    #mat[:, 0] = np.arange(0, label_max + 1) # row id (labels)
 
     #assume that the file list and the index list are in the same order, now we can build the matrix
     for idx, file in enumerate(connectome_files_list):
         label_idx = np.ndarray.flatten(pd.read_csv(connectome_files_index_list[idx], header = 0).values)
-        lookup_col = np.in1d(mat[0,:],label_idx)
+        lookup_col = label_idx - 1 #to make it 0-based
         lookup_row = lookup_col.T
         #mask = lookup_row[:,None]*lookup_col[None,:] #broadcast to create a 2d matrix of mat.shape with true where data will go
         #return mat, mask, lookup_col,lookup_row, pd.read_csv(file, sep = " ", header = None).values
@@ -388,9 +388,9 @@ def combine_connectome_matrices(connectome_files_list, connectome_files_index_li
         mat[np.ix_(lookup_row,lookup_col)] = pd.read_csv(file, sep = " ", header = None).values
     return mat
 
-def tck2connectome_collection(tck_file, node_files, weight_file = None, nthreads = 8):
+def tck2connectome_collection(tck_file, node_files, weight_file = None, nthreads = 8, CLOBBER = False):
     import subprocess
-
+    import os
     out_files = []
     if not isinstance(node_files,list):
         node_files = [node_files] #make iterable
@@ -402,7 +402,11 @@ def tck2connectome_collection(tck_file, node_files, weight_file = None, nthreads
             cmd = ["/home/chris/Documents/code/mrtrix3_devel/bin/tck2connectome", tck_file, node_file, out_file, "-tck_weights_in", weight_file, "-assignment_end_voxels", "-nthreads", str(nthreads), "-force"]
         print("Generating: {}".format(out_file))
         print(" ".join(cmd))
-        subprocess.call(cmd)
+        if os.path.exists(out_file):
+            if not CLOBBER:
+                print("The file already exists, not recreating it. (set CLOBBER=True if you want to overwrite)")
+        else:
+            subprocess.call(cmd)
         out_files.append(out_file)
     return out_files
 
