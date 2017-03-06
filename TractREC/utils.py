@@ -145,7 +145,7 @@ def generate_cubed_masks(mask_img, cubed_subset_dim, max_num_labels_per_mask = N
             all_out_files.append(out_file)
             all_out_files_luts.append(out_file_lut)
     else:
-        all_out_files = out_file_base+"_all.nii.gz"
+        all_out_files = out_file_base+"_all_.nii.gz"
         all_out_files_luts = None
     img = nb.Nifti1Image(d,aff,header)
     img.set_data_dtype("uint64")
@@ -181,6 +181,7 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
     aff = img.affine
     header = img.header
 
+    #TODO: move saving of 0_0 superset .nii.gz and labels files up here - more logical control
     if cubed_subset_dim is not None:
         cubed_3d = get_cubed_array_labels_3d(np.shape(d), cubed_subset_dim).astype(np.uint32)
         d = np.multiply(d, cubed_3d) # apply the cube to the data
@@ -196,6 +197,10 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
         for vox in all_vox_locs:
             d[vox[0], vox[1], vox[2]] = idx
             idx += 1
+        lut = np.zeros((np.shape(all_vox_locs)[0], np.shape(all_vox_locs)[1] + 1))
+        lut[:, 1:] = nb.affines.apply_affine(aff, all_vox_locs)
+        lut[:, 0] = np.arange(1, np.shape(all_vox_locs)[0] + 1)
+        #np.savetxt(lut_file, lut, header="index,x_coord,y_coord,z_coord", delimiter=",", fmt="%." + str(decimals) + "f")
 
     unique = np.unique(d)
     non_zero_labels = unique[np.nonzero(unique)]
@@ -233,7 +238,7 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
 
             tail = "_subset_" + str(set[0]).zfill(zfill_num) + "_" + str(set[1]).zfill(zfill_num)
             out_file = out_file_base + tail + ".nii.gz"
-            out_file_lut = out_file_base + tail + "_coords.csv"
+            out_file_lut = out_file_base + tail + "_labels.txt"
             print("\n"+"Subset includes {} non-zero labels.".format(len(superset)))
             print(set)
             print(out_file)
@@ -247,11 +252,11 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
             all_out_files.append(out_file)
             all_out_files_luts.append(out_file_lut)
     else:
-        all_out_files = out_file_base+"_all.nii.gz"
+        all_out_files = out_file_base+"_subset_"+str(0).zfill(zfill_num)+"_"+str(0).zfill(zfill_num)+"_all.nii.gz"
         all_out_files_luts = None
     img = nb.Nifti1Image(d,aff,header)
     img.set_data_dtype("uint64")
-    nb.save(img,out_file_base+"_all.nii.gz")
+    nb.save(img,out_file_base+"_subset_"+str(0).zfill(zfill_num)+"_"+str(0).zfill(zfill_num)+"_all.nii.gz")
     print(out_file_base+"_all.nii.gz")
     return all_out_files, all_out_files_luts
 
@@ -277,7 +282,7 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
     :param connectome_files_index_master:
     :return:
     """
-
+    #TODO: consider switching to DOK for faster updating - not sure if indexing will continue to work the same way?
     import pandas as pd
     import numpy as np
     import scipy.sparse as sparse
