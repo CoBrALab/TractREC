@@ -153,9 +153,10 @@ def generate_cubed_masks(mask_img, cubed_subset_dim, max_num_labels_per_mask = N
     print(out_file_base+"_all.nii.gz")
     return all_out_files, all_out_files_luts
 
-def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_per_mask = None, out_sub_dir = "cnctm",
-                            start_idx = 1, out_file_base = None, zfill_num = 4, coordinate_space = "scanner",
-                            coord_precision = 2, VERBOSE = True):
+def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_dim = None,
+                              max_num_labels_per_mask = None, out_sub_dir ="cnctm", start_idx = 1,
+                              out_file_base = None, zfill_num = 4, coordinate_space = "scanner",
+                              coord_precision = 2, VERBOSE = True):
     """
     Generate cubes of unique indices to cover the entire volume, multiply them by your binary mask_img, then split up
     into multiple mask node files of no more than max_num_labels_per_mask (for mem preservation) and re-index each to
@@ -165,6 +166,7 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
     Saves each combination of subsets of rois as *index_label_?_?.nii.gz, along with
 
     :param mask_img:
+    :param include_mask_img:            must be in the same space as mask_img, indices of this mask will come at the end and they will supersede those of the original mask_img XXX
     :param cubed_subset_dim:
     :param max_num_labels_per_mask:
     :param out_sub_dir:
@@ -183,6 +185,8 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
 
     if out_sub_dir is not None:
         import os
+        if include_mask_img is not None:
+            out_sub_dir = out_sub_dir + "_includeMask"
         if cubed_subset_dim is not None:
             out_sub_dir = out_sub_dir + "_cubed_" + str(cubed_subset_dim)
         if max_num_labels_per_mask is not None:
@@ -192,30 +196,48 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
             os.makedirs(out_dir)
         out_file_base = os.path.join(out_dir, os.path.basename(out_file_base))
         print(out_file_base)
+
     img = nb.loadsave.load(mask_img)
     d = img.get_data().astype(np.uint64)
     aff = img.affine
     header = img.header
 
+    if include_mask_img is not None:
+        img2 = nb.loadsave.load(include_mask_img)
+        d2 = img2.get_data().astype(np.uint64)
 
     if cubed_subset_dim is not None:
         print("Generating labels and LUT file for cubed indices. This may take a while if you have many indices.")  # TODO: make this faster
         cubed_3d = get_cubed_array_labels_3d(np.shape(d), cubed_subset_dim).astype(np.uint32)
         d = np.multiply(d, cubed_3d) # apply the cube to the data
-
         #extremely fast way to replace values, suggested here: http://stackoverflow.com/questions/13572448/change-values-in-a-numpy-array
         palette = np.unique(d) #INCLUDES 0
         key = np.arange(0,len(palette))
         index = np.digitize(d.ravel(), palette, right=True)
         d = key[index].reshape(d.shape)
 
-        lut = np.zeros((len(palette)-1,4)) #non-zero LUT
+        if include_mask_img is not None:
+            d2 = np.multiply(d2, cubed_3d)
+            palette2 = np.unique(d2)  # INCLUDES 0
+            key = np.arange(0, len(palette2))
+            key[1:] = key[1:] + np.max(d) #create the offset in the labels
+            index = np.digitize(d2.ravel(), palette2, right=True)
+            d2 = key[index].reshape(d2.shape)
+            d[d2 > 0] = d2[d2 > 0] #overwrite the d1 value with second mask
 
+            #need to do this again in case we overwrote an index TODO: better way to do this?
+            palette = np.unique(d) #INCLUDES 0
+            key = np.arange(0,len(palette))
+            index = np.digitize(d.ravel(), palette, right=True)
+            d = key[index].reshape(d.shape)
+
+        lut = np.zeros((len(palette)-1 + len(palette) - 1, 4)) #non-zero LUT
+        return d,lut
         all_vox_locs = np.array(np.where(d>0)).T
         all_vox_idx_locs = np.zeros((len(all_vox_locs),4))
         all_vox_idx_locs[:,1:] = all_vox_locs
         idx = 0
-        for vox in all_vox_locs:
+        for vox in all_vox_locs: #TODO: this doesn't take care of the lut from the second image
             all_vox_idx_locs[idx,0]=d[vox[0], vox[1], vox[2]]
             idx += 1
         for vox_idx_loc in all_vox_idx_locs:
@@ -305,19 +327,33 @@ def generate_cubed_masks_v2(mask_img, cubed_subset_dim = None, max_num_labels_pe
     return all_out_files, all_out_files_luts, out_sub_dir
 
 
-def do_it_all(tck_file, mask_img, weight_file = None, cubed_subset_dim = 3, max_num_labels_per_mask = 5000, out_mat_file=None):
+def do_it_all(tck_file, mask_img, include_mask_img = None, tck_weights_file = None, cubed_subset_dim = 3, max_num_labels_per_mask = 5000, out_mat_file=None):
     # appx 5 hrs for dim=3, max labels=5k (without combining the connectome)
     from scipy import io
     import os
 
-    cubed_masks, cubed_mask_luts, out_dir = generate_cubed_masks_v2(mask_img, cubed_subset_dim=cubed_subset_dim, max_num_labels_per_mask=max_num_labels_per_mask)
-    connectome_files = tck2connectome_collection(tck_file, cubed_masks, weight_file=weight_file)
-    mat = combine_connectome_matrices_sparse(connectome_files,cubed_mask_luts)
+    cubed_masks, cubed_mask_luts, out_dir = generate_connectome_nodes(mask_img, include_mask_img = include_mask_img, cubed_subset_dim=cubed_subset_dim, max_num_labels_per_mask=max_num_labels_per_mask)
+    connectome_files = tck2connectome_collection(tck_file, cubed_masks, tck_weights_file=tck_weights_file, assign_all_mask_img = include_mask_img)
+
+    if include_mask_img is not None:
+        # we expect two sets of connectome files back
+        mat = combine_connectome_matrices_sparse(connectome_files[0], cubed_mask_luts)
+        mat_assignAll = combine_connectome_matrices_sparse(connectome_files[1], cubed_mask_luts)
+    else:
+       # return connectome_files, cubed_mask_luts
+        mat = combine_connectome_matrices_sparse(connectome_files,cubed_mask_luts)
+
     if out_mat_file is None:
         out_mat_file = os.path.join(out_dir,os.path.basename(mask_img).split(".")[0] + "_all_cnctm_mat_complete")
 
-    io.mmwrite(out_mat_file + ".mtx", mat)
-    io.savemat(out_mat_file + ".mat", {'mat':mat})
+    if include_mask_img is not None:
+        io.mmwrite(out_mat_file + "assignEnd" + ".mtx", mat)
+        io.savemat(out_mat_file + "assignEnd" + ".mat", {'mat': mat})
+        io.mmwrite(out_mat_file + "assignAll" + ".mtx", mat_assignAll)
+        io.savemat(out_mat_file + "assignAll" + ".mat", {'mat': mat_assignAll})
+    else:
+        io.mmwrite(out_mat_file + ".mtx", mat)
+        io.savemat(out_mat_file + ".mat", {'mat':mat})
     print("\nFull matrix stored in: {} .mtx/.mat".format(out_mat_file))
     return mat
 
@@ -334,6 +370,11 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
     import pandas as pd
     import numpy as np
     import scipy.sparse as sparse
+
+    if not isinstance(connectome_files_index_list, list):
+        connectome_files_index_list = [connectome_files_index_list]
+    if not isinstance(connectome_files_list, list):
+        connectome_files_list = [connectome_files_list]
 
     #first check the indices so you know how large things are
     if label_max is None:
@@ -388,27 +429,61 @@ def combine_connectome_matrices(connectome_files_list, connectome_files_index_li
         mat[np.ix_(lookup_row,lookup_col)] = pd.read_csv(file, sep = " ", header = None).values
     return mat
 
-def tck2connectome_collection(tck_file, node_files, weight_file = None, nthreads = 8, CLOBBER = False):
+def tck2connectome_collection(tck_file, node_files, tck_weights_file = None, assign_all_mask_img = None, nthreads = 8, CLOBBER = False):
+    """
+
+    :param tck_file:
+    :param node_files:
+    :param tck_weights_file:
+    :param assign_all_mask_img:    if not None, then we change the call to include all voxels in the mask rather than just endpoints (useful for inclusion of wm mask)
+                                automatically runs -assignment_all_voxels AND -assignment_end_voxels (files in 0, 1 of returned variable respectively)
+    :param nthreads:
+    :param CLOBBER:
+    :return:
+    """
     import subprocess
     import os
     out_files = []
+    out_files_assignEnd = []
     if not isinstance(node_files,list):
         node_files = [node_files] #make iterable
     for idx, node_file in enumerate(node_files):
-        out_file = node_file.split(".")[0] + "_cnctm_mat.txt"
-        if weight_file is None:
-            cmd = ["tck2connectome", tck_file, node_file, out_file, "-assignment_end_voxels", "-nthreads", str(nthreads), "-force"]
-        else: #TODO: modify with final parameters to get WM voxel crossings
-            cmd = ["/home/chris/Documents/code/mrtrix3_devel/bin/tck2connectome", tck_file, node_file, out_file, "-tck_weights_in", weight_file, "-assignment_end_voxels", "-nthreads", str(nthreads), "-force"]
-        print("Generating: {}".format(out_file))
+        out_file = node_file.split(".")[0]
+        cmd = ["/home/chris/Documents/code/mrtrix3_devel/bin/tck2connectome", tck_file, node_file,
+               "-nthreads", str(nthreads), "-force"]
+        cmd_assignEnd = list(cmd) #need to copy the list, otherwise we share it :-(
+        if tck_weights_file is not None:
+            out_file = out_file + "_weights"
+            cmd.extend(["-tck_weights_in", tck_weights_file])
+        if assign_all_mask_img is not None:
+            # we also need to run the assignEnd, so create another variable to hold this and the command
+            out_file_assignEnd = out_file + "_assignEnd" + "_cnctm_mat.txt"
+            cmd_assignEnd.extend(["-assignment_end_voxels", out_file_assignEnd])
+            out_file = out_file + "_assignAll" + "_cnctm_mat.txt"
+            cmd.extend(["-assignment_all_voxels", out_file])
+            # cmd = ["/home/chris/Documents/code/mrtrix3_devel/bin/tck2connectome", tck_file, node_file, out_file, "-tck_weights_in", tck_weights_file, "-assignment_end_voxels", "-nthreads", str(nthreads), "-force"]
+        else:
+            out_file = out_file + "_assignEnd" + "_cnctm_mat.txt"
+            cmd.extend(["-assignment_end_voxels", out_file])
+
+        print("Generating connectome file: {}".format(out_file))
+        print("")
         print(" ".join(cmd))
+        if assign_all_mask_img is not None:
+            print(" ".join(cmd_assignEnd))
         if os.path.exists(out_file):
             if not CLOBBER:
                 print("The file already exists, not recreating it. (set CLOBBER=True if you want to overwrite)")
         else:
+            pass
             subprocess.call(cmd)
+            if assign_all_mask_img is not None:
+                subprocess.call(cmd_assignEnd)
         out_files.append(out_file)
-    return out_files
+    if assign_all_mask_img is not None:
+        return [out_files_assignEnd, out_files]
+    else:
+        return out_files
 
 def mask2labels_multifile(mask_img, out_file_base = None, max_num_labels_per_mask = 1000, output_lut_file = False,
                           decimals = 2, start_idx = 1, coordinate_space = "scanner", cubed_subset_dim = None):
