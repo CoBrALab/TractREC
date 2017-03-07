@@ -156,7 +156,7 @@ def generate_cubed_masks(mask_img, cubed_subset_dim, max_num_labels_per_mask = N
 def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_dim = None,
                               max_num_labels_per_mask = None, out_sub_dir ="cnctm", start_idx = 1,
                               out_file_base = None, zfill_num = 4, coordinate_space = "scanner",
-                              coord_precision = 2, VERBOSE = True):
+                              coord_precision = 4, VERBOSE = True):
     """
     Generate cubes of unique indices to cover the entire volume, multiply them by your binary mask_img, then split up
     into multiple mask node files of no more than max_num_labels_per_mask (for mem preservation) and re-index each to
@@ -170,7 +170,7 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
     :param cubed_subset_dim:
     :param max_num_labels_per_mask:
     :param out_sub_dir:
-    :param start_idx:
+    :param start_idx:                   don't set this to anything other than 1 unless you have gone through the code. mrtrix does not like this and I haven't made sure that it works properly throuhgout all functions
     :param out_file_base:
     :param zfill_num:                   number of 0s to pad indices with so that filenames look nice (always use natural sort, however!)
     :param coordinate_space:            coordinate space for output of voxel locations (either apply transform {"scanner"} or voxel space {"voxel"}
@@ -258,14 +258,6 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
             lut[idx, 1:] = coord
             idx += 1
 
-        # for vox_idx_loc in all_vox_idx_locs:
-        #     idx = vox_idx_loc.flatten()[0].astype(int)  # label index number will always be the first element of a flattened array
-        #     if vox_idx_loc.ndim == 1:
-        #         coord = vox_idx_loc[1:]
-        #     else:
-        #         coord = np.mean(vox_idx_loc[:, 1:], axis=0)
-        #     lut[idx-1,0] = idx #zero indexing for the array, but 1-based for my label indexes
-        #     lut[idx-1,1:] = coord
         print("Completed generating LUT file for cubed indices.")
     else:
         all_vox_locs = np.array(np.where(d == 1)).T
@@ -276,6 +268,31 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
         lut = np.zeros((np.shape(all_vox_locs)[0], np.shape(all_vox_locs)[1] + 1))
         lut[:, 1:] = all_vox_locs
         lut[:, 0] = np.arange(1, np.shape(all_vox_locs)[0] + 1)
+
+        if include_mask_img is not None: #update the original node file with the second image that was included, update the lut and index too!
+            all_vox_locs_d2 = np.array(np.where(d2 == 1)).T
+            wm_first_label = idx
+            for vox in all_vox_locs_d2: #increment the second mask (wm) from where we left off
+                d2[vox[0], vox[1], vox[2]] = idx
+                idx += 1
+            wm_label_count = len(np.unique(d2)) - 1
+            d[d2>0] = d2[d2>0] #again, overwriting the label if we also have it in the wm mask
+
+            #need to do this again in case we overwrote an index TODO: better way to do this?
+            palette = np.unique(d) #INCLUDES 0
+            key = np.arange(0,len(palette))
+            wm_remapped_label = key[palette == wm_first_label]
+            np.savetxt(out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_labels_lut_all_labels_wm_start_val_num.txt", np.array([wm_remapped_label,wm_label_count]), fmt = "%i")
+            index = np.digitize(d.ravel(), palette, right=True)
+            d = key[index].reshape(d.shape)
+
+            all_vox_locs = np.array(np.where(d > 0)).T
+            lut = np.zeros((np.shape(all_vox_locs)[0], np.shape(all_vox_locs)[1] + 1))
+            lut[:, 1:] = all_vox_locs
+            idx = 0
+            for vox in all_vox_locs:
+                lut[idx, 0] = d[vox[0], vox[1], vox[2]]
+                idx += 1
 
     if coordinate_space == "scanner":
         lut[:, 1:] = nb.affines.apply_affine(aff, lut[:, 1:])
