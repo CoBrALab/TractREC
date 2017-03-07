@@ -236,17 +236,20 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
             np.savetxt(out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_labels_lut_all_labels_wm_start_val_num.txt", np.array([wm_remapped_label,wm_label_count]), fmt = "%i")
             index = np.digitize(d.ravel(), palette, right=True)
             d = key[index].reshape(d.shape)
-
+            print("Second mask image incorporated")
 
         lut = np.zeros((len(palette)-1, 4)) #non-zero LUT
         all_vox_locs = np.array(np.where(d>0)).T
         all_vox_idx_locs = np.zeros((len(all_vox_locs),4)) # will contain lut_idx_val, x, y, z
         all_vox_idx_locs[:,1:] = all_vox_locs
+        print("Determining the value of non-zero voxels in the combined mask.")
         idx = 0
-        for vox in all_vox_locs: #TODO: this doesn't take care of the lut from the second image, shit
+        for vox in all_vox_locs:
             all_vox_idx_locs[idx,0]=d[vox[0], vox[1], vox[2]]
             idx += 1
 
+        print("Calculating lut and coordinates for centroid in each subset (slow).")
+        print("  there are {} individual labels that need to have their centroids calculated... ".format(len(np.unique(all_vox_idx_locs[:,0]))))
         idx = 0
         for lut_idx in np.unique(all_vox_idx_locs[:,0]):
             vox_subset = all_vox_idx_locs[all_vox_idx_locs[:,0]==lut_idx] #get the coords for the matching lut_idx
@@ -257,7 +260,6 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
             lut[idx, 0] = lut_idx
             lut[idx, 1:] = coord
             idx += 1
-
         print("Completed generating LUT file for cubed indices.")
     else:
         all_vox_locs = np.array(np.where(d == 1)).T
@@ -382,7 +384,7 @@ def do_it_all(tck_file, mask_img, include_mask_img = None, tck_weights_file = No
         mat = combine_connectome_matrices_sparse(connectome_files,node_mask_luts)
     if out_mat_file is None:
         out_mat_file = os.path.join(out_dir,os.path.basename(mask_img).split(".")[0] + "_all_cnctm_mat_complete")
-    print("\nFull matrix stored in: {} .mtx/.mat".format(out_mat_file))
+    print("\nFull matrix stored in: {} .mtx/.mat".format(out_mat_file + "_{tail}"))
     if include_mask_img is not None:
         io.mmwrite(out_mat_file + "_assignEnd" + ".mtx", mat)
         io.savemat(out_mat_file + "_assignEnd" + ".mat", {'mat': mat})
