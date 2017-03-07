@@ -222,15 +222,18 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
             palette2 = np.unique(d2)  # INCLUDES 0
             key = np.arange(0, len(palette2))
             key[1:] = key[1:] + np.max(d) #create the offset in the labels
-            print out_file_base
-            np.savetxt(out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_labels_lut_all_labels_wm_start_val.txt", np.array([np.max(d)+1]), fmt = "%i")
+            wm_first_label = np.max(d)+1
+            wm_label_count = len(palette2)-1
             index = np.digitize(d2.ravel(), palette2, right=True)
             d2 = key[index].reshape(d2.shape)
-            d[d2 > 0] = d2[d2 > 0] #overwrite the d1 value with second mask
+            d[d2 > 0] = d2[d2 > 0] #overwrite the d value with second mask -makes assumptions about what the WM mask will look like, which may not be well founded.
 
             #need to do this again in case we overwrote an index TODO: better way to do this?
             palette = np.unique(d) #INCLUDES 0
             key = np.arange(0,len(palette))
+            wm_remapped_label = key[palette == wm_first_label]
+            #save the new first label and number of labels for the second mask (wm)
+            np.savetxt(out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_labels_lut_all_labels_wm_start_val_num.txt", np.array([wm_remapped_label,wm_label_count]), fmt = "%i")
             index = np.digitize(d.ravel(), palette, right=True)
             d = key[index].reshape(d.shape)
 
