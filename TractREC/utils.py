@@ -156,7 +156,7 @@ def generate_cubed_masks(mask_img, cubed_subset_dim, max_num_labels_per_mask = N
 def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_dim = None,
                               max_num_labels_per_mask = None, out_sub_dir ="cnctm", start_idx = 1,
                               out_file_base = None, zfill_num = 4, coordinate_space = "scanner",
-                              coord_precision = 4, VERBOSE = True):
+                              coordinate_precision = 4, VERBOSE = True):
     """
     Generate cubes of unique indices to cover the entire volume, multiply them by your binary mask_img, then split up
     into multiple mask node files of no more than max_num_labels_per_mask (for mem preservation) and re-index each to
@@ -251,14 +251,18 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
         print("Calculating lut and coordinates for centroid in each subset (slow).")
         print("  there are {} individual labels that need to have their centroids calculated... ".format(len(np.unique(all_vox_idx_locs[:,0]))))
         idx = 0
+        #TODO: make this faster. It is by far the slowest part of the code.
         for lut_idx in np.unique(all_vox_idx_locs[:,0]):
-            vox_subset = all_vox_idx_locs[all_vox_idx_locs[:,0]==lut_idx] #get the coords for the matching lut_idx
+
+            #vox_subset = all_vox_idx_locs[all_vox_idx_locs[:,0]==lut_idx] #get the coords for the matching lut_idx
+            vox_subset = all_vox_idx_locs[np.where(all_vox_idx_locs[:,0] == lut_idx),:]
             if vox_subset.ndim == 1:
-                coord = vox_subset[1:]
+                this_lut = vox_subset[1:]
             else:
-                coord = np.mean(vox_subset[:,1:], axis = 0)
-            lut[idx, 0] = lut_idx
-            lut[idx, 1:] = coord
+                this_lut = np.mean(vox_subset, axis = 1)
+                if VERBOSE:
+                    print(this_lut)
+            lut[idx, :] = this_lut
             idx += 1
         print("Completed generating LUT file for cubed indices.")
     else:
@@ -305,7 +309,7 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
 
 
     out_file_lut = out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_labels_lut_all.txt"
-    np.savetxt(out_file_lut, lut, header=lut_header, delimiter=",", fmt="%." + str(coord_precision) + "f")
+    np.savetxt(out_file_lut, lut, header=lut_header, delimiter=",", fmt="%." + str(coordinate_precision) + "f")
 
     out_file_lut = out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_labels_lut_all_labels.txt"
     np.savetxt(out_file_lut, lut[:,0].astype(int), delimiter=",", fmt="%d",header="index_label")
