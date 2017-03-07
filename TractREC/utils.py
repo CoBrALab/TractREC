@@ -210,6 +210,7 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
         print("Generating labels and LUT file for cubed indices. This may take a while if you have many indices.")  # TODO: make this faster
         cubed_3d = get_cubed_array_labels_3d(np.shape(d), cubed_subset_dim).astype(np.uint32)
         d = np.multiply(d, cubed_3d) # apply the cube to the data
+
         #extremely fast way to replace values, suggested here: http://stackoverflow.com/questions/13572448/change-values-in-a-numpy-array
         palette = np.unique(d) #INCLUDES 0
         key = np.arange(0,len(palette))
@@ -221,6 +222,8 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
             palette2 = np.unique(d2)  # INCLUDES 0
             key = np.arange(0, len(palette2))
             key[1:] = key[1:] + np.max(d) #create the offset in the labels
+            print out_file_base
+            np.savetxt(out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_labels_lut_all_labels_wm_start_val.txt", np.array([np.max(d)+1]), fmt = "%i")
             index = np.digitize(d2.ravel(), palette2, right=True)
             d2 = key[index].reshape(d2.shape)
             d[d2 > 0] = d2[d2 > 0] #overwrite the d1 value with second mask
@@ -231,23 +234,35 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
             index = np.digitize(d.ravel(), palette, right=True)
             d = key[index].reshape(d.shape)
 
-        lut = np.zeros((len(palette)-1 + len(palette) - 1, 4)) #non-zero LUT
-        return d,lut
+
+        lut = np.zeros((len(palette)-1, 4)) #non-zero LUT
         all_vox_locs = np.array(np.where(d>0)).T
-        all_vox_idx_locs = np.zeros((len(all_vox_locs),4))
+        all_vox_idx_locs = np.zeros((len(all_vox_locs),4)) # will contain lut_idx_val, x, y, z
         all_vox_idx_locs[:,1:] = all_vox_locs
         idx = 0
-        for vox in all_vox_locs: #TODO: this doesn't take care of the lut from the second image
+        for vox in all_vox_locs: #TODO: this doesn't take care of the lut from the second image, shit
             all_vox_idx_locs[idx,0]=d[vox[0], vox[1], vox[2]]
             idx += 1
-        for vox_idx_loc in all_vox_idx_locs:
-            idx = vox_idx_loc.flatten()[0].astype(int)  # will always be the first element of a flattened array
-            if vox_idx_loc.ndim == 1:
-                coord = vox_idx_loc[1:]
+
+        idx = 0
+        for lut_idx in np.unique(all_vox_idx_locs[:,0]):
+            vox_subset = all_vox_idx_locs[all_vox_idx_locs[:,0]==lut_idx] #get the coords for the matching lut_idx
+            if vox_subset.ndim == 1:
+                coord = vox_subset[1:]
             else:
-                coord = np.mean(vox_idx_loc[:, 1:], axis=0)
-            lut[idx-1,0] = idx #zero indexing for the array, but 1-based for my label indexes
-            lut[idx-1,1:] = coord
+                coord = np.mean(vox_subset[:,1:], axis = 0)
+            lut[idx, 0] = lut_idx
+            lut[idx, 1:] = coord
+            idx += 1
+
+        # for vox_idx_loc in all_vox_idx_locs:
+        #     idx = vox_idx_loc.flatten()[0].astype(int)  # label index number will always be the first element of a flattened array
+        #     if vox_idx_loc.ndim == 1:
+        #         coord = vox_idx_loc[1:]
+        #     else:
+        #         coord = np.mean(vox_idx_loc[:, 1:], axis=0)
+        #     lut[idx-1,0] = idx #zero indexing for the array, but 1-based for my label indexes
+        #     lut[idx-1,1:] = coord
         print("Completed generating LUT file for cubed indices.")
     else:
         all_vox_locs = np.array(np.where(d == 1)).T
@@ -270,6 +285,9 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
     out_file_lut = out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_labels_lut_all.txt"
     np.savetxt(out_file_lut, lut, header=lut_header, delimiter=",", fmt="%." + str(coord_precision) + "f")
 
+    out_file_lut = out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_labels_lut_all_labels.txt"
+    np.savetxt(out_file_lut, lut[:,0].astype(int), delimiter=",", fmt="%d",header="index_label")
+
     img = nb.Nifti1Image(d, aff, header)
     img.set_data_dtype("uint64")
     nb.save(img, out_file_base + "_subset_" + str(0).zfill(zfill_num) + "_" + str(0).zfill(zfill_num) + "_all.nii.gz")
@@ -277,7 +295,7 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
 
     unique = np.unique(d)
     non_zero_labels = unique[np.nonzero(unique)]
-    print(str(np.max(d))+ " unique labels (including 0)")
+    print(str(len(non_zero_labels))+ " unique labels (excluding 0)")
 
     if (max_num_labels_per_mask is not None) and (max_num_labels_per_mask < len(non_zero_labels)): #we cut things up
         import itertools
@@ -332,30 +350,29 @@ def do_it_all(tck_file, mask_img, include_mask_img = None, tck_weights_file = No
     from scipy import io
     import os
 
-    cubed_masks, cubed_mask_luts, out_dir = generate_connectome_nodes(mask_img, include_mask_img = include_mask_img, cubed_subset_dim=cubed_subset_dim, max_num_labels_per_mask=max_num_labels_per_mask)
-    connectome_files = tck2connectome_collection(tck_file, cubed_masks, tck_weights_file=tck_weights_file, assign_all_mask_img = include_mask_img)
+    node_masks, node_mask_luts, out_dir = generate_connectome_nodes(mask_img, include_mask_img = include_mask_img, cubed_subset_dim=cubed_subset_dim, max_num_labels_per_mask=max_num_labels_per_mask)
+    connectome_files = tck2connectome_collection(tck_file, node_masks, tck_weights_file=tck_weights_file, assign_all_mask_img = include_mask_img)
 
+    #return connectome_files, node_mask_luts
     if include_mask_img is not None:
         # we expect two sets of connectome files back
-        mat = combine_connectome_matrices_sparse(connectome_files[0], cubed_mask_luts)
-        mat_assignAll = combine_connectome_matrices_sparse(connectome_files[1], cubed_mask_luts)
+        mat = combine_connectome_matrices_sparse(connectome_files[0], node_mask_luts)
+        mat_assignAll = combine_connectome_matrices_sparse(connectome_files[1], node_mask_luts)
     else:
-       # return connectome_files, cubed_mask_luts
-        mat = combine_connectome_matrices_sparse(connectome_files,cubed_mask_luts)
-
+        mat = combine_connectome_matrices_sparse(connectome_files,node_mask_luts)
     if out_mat_file is None:
         out_mat_file = os.path.join(out_dir,os.path.basename(mask_img).split(".")[0] + "_all_cnctm_mat_complete")
-
+    print("\nFull matrix stored in: {} .mtx/.mat".format(out_mat_file))
     if include_mask_img is not None:
-        io.mmwrite(out_mat_file + "assignEnd" + ".mtx", mat)
-        io.savemat(out_mat_file + "assignEnd" + ".mat", {'mat': mat})
-        io.mmwrite(out_mat_file + "assignAll" + ".mtx", mat_assignAll)
-        io.savemat(out_mat_file + "assignAll" + ".mat", {'mat': mat_assignAll})
+        io.mmwrite(out_mat_file + "_assignEnd" + ".mtx", mat)
+        io.savemat(out_mat_file + "_assignEnd" + ".mat", {'mat': mat})
+        io.mmwrite(out_mat_file + "_assignAll" + ".mtx", mat_assignAll)
+        io.savemat(out_mat_file + "_assignAll" + ".mat", {'mat': mat_assignAll})
+        return mat, mat_assignAll
     else:
         io.mmwrite(out_mat_file + ".mtx", mat)
         io.savemat(out_mat_file + ".mat", {'mat':mat})
-    print("\nFull matrix stored in: {} .mtx/.mat".format(out_mat_file))
-    return mat
+        return mat
 
 def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_index_list, label_max = None, connectome_files_index_master = None):
     """
@@ -380,7 +397,8 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
     if label_max is None:
         label_max = 0
         for idx, file in enumerate(connectome_files_index_list):
-            label_idx = np.ndarray.flatten(pd.read_csv(file, header = 0).values) #read quickly, then break out of the array of arrays of dimension 1
+            print(file)
+            label_idx = np.ndarray.flatten(pd.read_csv(file, header = 0).values).astype(int) #read quickly, then break out of the array of arrays of dimension 1
             if np.max(label_idx) > label_max:
                 label_max = np.max(label_idx)
     mat = sparse.lil_matrix((label_max,label_max)) #allow space for row and column IDs, and makes indexing super easy
@@ -390,7 +408,7 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
 
     #assume that the file list and the index list are in the same order, now we can build the matrix - USE NATURAL SORT!
     for idx, file in enumerate(connectome_files_list):
-        print("{0}:\n\tmatrix: {1}\n\tindex : {2}".format(idx+1,file,connectome_files_index_list[idx]))
+        print("{0}:\n  matrix: {1}\n  index : {2}".format(idx+1,file,connectome_files_index_list[idx]))
         label_idx = np.ndarray.flatten(pd.read_csv(connectome_files_index_list[idx], header = 0).values)
         #lookup_col = np.in1d(mat[0,:].toarray(),label_idx)
         lookup_col = label_idx - 1 #assuming that the start index is 1, which is a bad assumption?
@@ -401,32 +419,6 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
         #return mat, lookup_row,lookup_col,pd.read_csv(file, sep = " ", header = None).values
         #TODO: check to make sure that I am not overwriting any data here...? just to make sure that my indexing is working correclty...
         mat[np.ix_(lookup_row,lookup_col)]  = pd.read_csv(file, sep = " ", header = None).values #this works (tested on small sub-matrices) but not sure if all cases are covered?
-    return mat
-
-def combine_connectome_matrices(connectome_files_list, connectome_files_index_list, connectome_files_index_master = None):
-    import pandas as pd
-    import numpy as np
-
-    #first check the indices so you know how large things are
-    label_max = 0
-    for idx, file in enumerate(connectome_files_index_list):
-        label_idx = np.ndarray.flatten(pd.read_csv(file, header = 0).values) #read quickly, then break out of the array of arrays of dimension 1
-        if np.max(label_idx) > label_max:
-            label_max = np.max(label_idx)
-
-    mat = np.zeros((label_max,label_max),dtype=np.uint64) #allow space for row and column IDs, and makes indexing super easy
-    #mat[0, :] = np.arange(0, label_max + 1).T # column id
-    #mat[:, 0] = np.arange(0, label_max + 1) # row id (labels)
-
-    #assume that the file list and the index list are in the same order, now we can build the matrix
-    for idx, file in enumerate(connectome_files_list):
-        label_idx = np.ndarray.flatten(pd.read_csv(connectome_files_index_list[idx], header = 0).values)
-        lookup_col = label_idx - 1 #to make it 0-based
-        lookup_row = lookup_col.T
-        #mask = lookup_row[:,None]*lookup_col[None,:] #broadcast to create a 2d matrix of mat.shape with true where data will go
-        #return mat, mask, lookup_col,lookup_row, pd.read_csv(file, sep = " ", header = None).values
-        #mat = np.where(mask,pd.read_csv(file, sep = " ", header = None).values,mat)
-        mat[np.ix_(lookup_row,lookup_col)] = pd.read_csv(file, sep = " ", header = None).values
     return mat
 
 def tck2connectome_collection(tck_file, node_files, tck_weights_file = None, assign_all_mask_img = None, nthreads = 8, CLOBBER = False):
@@ -461,6 +453,7 @@ def tck2connectome_collection(tck_file, node_files, tck_weights_file = None, ass
             cmd_assignEnd.extend(["-assignment_end_voxels", out_file_assignEnd])
             out_file = out_file + "_assignAll" + "_cnctm_mat.txt"
             cmd.extend(["-assignment_all_voxels", out_file])
+            out_files_assignEnd.append(out_file_assignEnd)
             # cmd = ["/home/chris/Documents/code/mrtrix3_devel/bin/tck2connectome", tck_file, node_file, out_file, "-tck_weights_in", tck_weights_file, "-assignment_end_voxels", "-nthreads", str(nthreads), "-force"]
         else:
             out_file = out_file + "_assignEnd" + "_cnctm_mat.txt"
