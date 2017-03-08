@@ -752,7 +752,17 @@ def plot_coo_matrix(m):
     ax.set_yticks([])
     return fig
 
-def label_from_matrix2voxels(label_idx, sparse_matrix, voxel_lookup_lut, template_img, out_file = None):
+def label_from_matrix2voxel_map(label_idx, sparse_matrix, voxel_lut, template_img, out_file = None):
+    """
+    Create a visitation map for a single seed label, could easily modify to loop over different label indices
+    Primarily used as a way to spatially confirm results
+    :param label_idx:
+    :param sparse_matrix:
+    :param voxel_lut:
+    :param template_img:
+    :param out_file:
+    :return:
+    """
     import nibabel as nb
     from scipy import io, sparse
     import numpy as np
@@ -766,7 +776,7 @@ def label_from_matrix2voxels(label_idx, sparse_matrix, voxel_lookup_lut, templat
     d_shape = img.get_data().shape
 
     d = np.zeros(d_shape)
-    lut = np.loadtxt(voxel_lookup, header = 0)
+    lut = np.loadtxt(voxel_lut, header = 0).astype(int)
     mat = sparse.lil_matrix(io.mmread(sparse_matrix)) # cast as lil, so we can index it (upper symmetric sparse matrix)
 
     res = np.zeros((1,mat.shape[0]))
