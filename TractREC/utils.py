@@ -165,6 +165,7 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
     start at start_idx (default = 1, best to stick with this).
     Appx 4900 nodes creates appx 44mb connectome file (text) and file grows as the square of node number, so 1.8x larger (8820) should be just under 1GB
         - but this will likely break pd.read_csv unless you write a line by line reader :-/
+        - 20,000 node limits appear to be reasonable for 16gb computer, yet to see how the connectomes can be combined, since it will be large.
     Saves each combination of subsets of rois as *index_label_?_?.nii.gz, along with
 
     :param mask_img:
@@ -178,6 +179,7 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
     :param coordinate_space:            coordinate space for output of voxel locations (either apply transform {"scanner"} or voxel space {"voxel"}
     :return:
     """
+    #TODO: add code to separate subsetting dimensions of the mask and include images
 
     import nibabel as nb
     import numpy as np
