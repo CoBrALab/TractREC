@@ -7,6 +7,8 @@ Compute large connectomes using mrtrix and sparse matrices
 
 from __future__ import division  # to allow floating point calcs of number of voxels
 
+from pandas import read_csv
+
 
 def natural_sort(l):
     """
@@ -752,50 +754,65 @@ def plot_coo_matrix(m):
     ax.set_yticks([])
     return fig
 
-def label_from_matrix2voxel_map(label_idx, sparse_matrix, voxel_lut, template_img, out_file = None):
+def matrix2voxel_map(label_idxs, sparse_matrix_file, lut_file, template_node_img, out_file_base = None, apply_inv_affine = False):
     """
-    Create a visitation map for a single seed label, could easily modify to loop over different label indices
-    Primarily used as a way to spatially confirm results
-    :param label_idx:
-    :param sparse_matrix:
-    :param voxel_lut:
-    :param template_img:
-    :param out_file:
+    Create visitation map or maps for single or multiple seed labels from template_node_img
+    :param label_idxs:          label or labels (from template_node_img / lut) to visualise connectivity for, output will be in separate files
+    :param sparse_matrix_file:  the matrix that we are to pull the data from
+    :param lut_file:            look up table of indices and voxel locations (only currently used to confirm that sparse matrix is the correct size, not checking location at the moment)
+    :param template_node_img:   the full image that was used to create the matrix that the label is being extracted from
+    :param out_file:            output full filename, leave blank for auto-generated filename in same location as template_node_img
     :return:
     """
     import nibabel as nb
     from scipy import io, sparse
     import numpy as np
+    from pandas import read_csv
 
-    if out_file is None:
-        out_file = template_img.split(".") + "_cnctm_label_" +str(label_idx) + "_map.nii.gz"
+    if out_file_base is None:
+        out_file_base = template_node_img.split(".")[0] + "_cnctm_label_"
 
-    img = nb.load(template_img)
+    img = nb.load(template_node_img)
     aff = img.affine
     header = img.header
-    d_shape = img.get_data().shape
 
-    d = np.zeros(d_shape)
-    lut = np.loadtxt(voxel_lut, header = 0).astype(int)
-    mat = sparse.lil_matrix(io.mmread(sparse_matrix)) # cast as lil, so we can index it (upper symmetric sparse matrix)
+    d_orig = img.get_data()
 
-    res = np.zeros((1,mat.shape[0]))
+    lut_file = read_csv(lut_file, header = 0).values
 
-    # order the vector so that it follows the ordering of the lut (0..n)
-    res[0:label_idx-1] = mat[0:label_idx -1,label_idx -1].toarray() # top of the column, not including diag
-    res[label_idx:] = mat[label_idx - 1, label_idx- 1 :].toarray() # end of the row, including the diagonal
+    if apply_inv_affine:
+        lut_file[:, 1:] = nb.affines.apply_affine(np.linalg.inv(aff), lut_file[:, 1:])
+    lut_file = lut_file.astype(int)
 
-    if not (lut.shape[0] == len(res)):
-        print("Shit, something went wrong! Your lut and matrix don't seem to match")
+    mat = sparse.lil_matrix(io.mmread(sparse_matrix_file)) # cast as lil, so we can index it (upper symmetric sparse matrix)
 
-    vox_coords = lut[:,1:]
+    if not np.iterable(label_idxs):
+        label_idxs = np.array([label_idxs])
 
-    idx = 0
-    for vox in vox_coords:
-        d[vox[0],vox[1],vox[2]] = res[idx]
-        idx += 1
+    out_files = []
+    print("Re-labeling indices in template file (1-based indexing): ")
+    for label_idx in label_idxs:
+        print("  label index: {}".format(label_idx))
+        d = np.copy(d_orig)
+        out_file = out_file_base + str(label_idx) + "_map.nii.gz"
+        res = np.zeros(mat.shape[0])
 
-    img_out = nb.Nifti1Image(d,aff,header)
-    img_out.set_data_dtype('Float32')
-    nb.save(img_out,out_file)
-    return out_file
+        # order the vector so that it follows the ordering of the lut (0..n)
+        res[0:label_idx-1] = mat[0:label_idx -1,label_idx -1].toarray().ravel() # top of the column, not including diag
+        res[label_idx-1:] = mat[label_idx - 1, label_idx- 1 :].toarray().ravel() # end of the row, including the diagonal
+
+        if not (lut_file.shape[0] == len(res)):
+            print("Shit, something went wrong! Your lut and matrix don't seem to match")
+
+        palette= np.unique(d)  # INCLUDES 0
+        key = np.zeros(palette.shape)
+        key[1:] = res #leave the 0 for the first index, i.e., background
+        index = np.digitize(d.ravel(), palette, right=True)
+        d = key[index].reshape(d.shape)
+
+        img_out = nb.Nifti1Image(d,aff,header = header)
+        img_out.set_data_dtype('float32')
+        nb.save(img_out,out_file)
+        out_files.append(out_file)
+        print("  {}\n".format(out_file))
+    return out_files
