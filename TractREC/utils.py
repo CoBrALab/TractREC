@@ -190,7 +190,7 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
         if cubed_subset_dim is not None:
             out_sub_dir = out_sub_dir + "_cubed_" + str(cubed_subset_dim)
         if max_num_labels_per_mask is not None:
-            out_sub_dir = out_sub_dir + "_maxlabsPmask_" + str(max_num_labels_per_mask)
+            out_sub_dir = out_sub_dir + "_maxLabelsPmask_" + str(max_num_labels_per_mask)
         out_dir = os.path.join(os.path.dirname(out_file_base), out_sub_dir)
         if not os.path.exists(out_dir):
             os.makedirs(out_dir)
@@ -260,8 +260,8 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
                 this_lut = vox_subset[1:]
             else:
                 this_lut = np.mean(vox_subset, axis = 1)
-                if VERBOSE:
-                    print(this_lut)
+                # if VERBOSE:
+                #     print(this_lut)
             lut[idx, :] = this_lut
             idx += 1
         print("Completed generating LUT file for cubed indices.")
@@ -300,11 +300,12 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
                 lut[idx, 0] = d[vox[0], vox[1], vox[2]]
                 idx += 1
 
+    # TODO: check whether all_vox_locs is correct in every case, otherwise may need to do inside the if statements
     if coordinate_space == "scanner":
         lut[:, 1:] = nb.affines.apply_affine(aff, lut[:, 1:])
         lut_header = "index_label,x_coord_scan,y_coord_scan,z_coord_scan"
     elif coordinate_space == "voxel":
-        lut[:, 1:] = all_vox_locs
+        #lut[:, 1:] = all_vox_locs
         lut_header = "index_label,x_coord_vox,y_coord_vox,z_coord_vox"
 
 
@@ -371,13 +372,15 @@ def generate_connectome_nodes(mask_img, include_mask_img = None, cubed_subset_di
     return all_out_files, all_out_files_luts, out_sub_dir
 
 
-def do_it_all(tck_file, mask_img, include_mask_img = None, tck_weights_file = None, cubed_subset_dim = 3, max_num_labels_per_mask = 5000, out_mat_file=None):
+def do_it_all(tck_file, mask_img, include_mask_img = None, tck_weights_file = None, cubed_subset_dim = 3, max_num_labels_per_mask = 5000, out_mat_file=None,coordinate_space = "scanner"):
     # appx 5 hrs for dim=3, max labels=5k (without combining the connectome)
     from scipy import io
     import os
 
-    node_masks, node_mask_luts, out_dir = generate_connectome_nodes(mask_img, include_mask_img = include_mask_img, cubed_subset_dim=cubed_subset_dim, max_num_labels_per_mask=max_num_labels_per_mask)
-    connectome_files = tck2connectome_collection(tck_file, node_masks, tck_weights_file=tck_weights_file, assign_all_mask_img = include_mask_img)
+    node_masks, node_mask_luts, out_dir = generate_connectome_nodes(mask_img, include_mask_img = include_mask_img,
+                                                                    cubed_subset_dim=cubed_subset_dim, max_num_labels_per_mask=max_num_labels_per_mask, coordinate_space=coordinate_space)
+    connectome_files = tck2connectome_collection(tck_file, node_masks, tck_weights_file=tck_weights_file,
+                                                 assign_all_mask_img = include_mask_img)
 
     #return connectome_files, node_mask_luts
     if include_mask_img is not None:
@@ -748,3 +751,41 @@ def plot_coo_matrix(m):
     ax.set_xticks([])
     ax.set_yticks([])
     return fig
+
+def label_from_matrix2voxels(label_idx, sparse_matrix, voxel_lookup_lut, template_img, out_file = None):
+    import nibabel as nb
+    from scipy import io, sparse
+    import numpy as np
+
+    if out_file is None:
+        out_file = template_img.split(".") + "_cnctm_label_" +str(label_idx) + "_map.nii.gz"
+
+    img = nb.load(template_img)
+    aff = img.affine
+    header = img.header
+    d_shape = img.get_data().shape
+
+    d = np.zeros(d_shape)
+    lut = np.loadtxt(voxel_lookup, header = 0)
+    mat = sparse.lil_matrix(io.mmread(sparse_matrix)) # cast as lil, so we can index it (upper symmetric sparse matrix)
+
+    res = np.zeros((1,mat.shape[0]))
+
+    # order the vector so that it follows the ordering of the lut (0..n)
+    res[0:label_idx-1] = mat[0:label_idx -1,label_idx -1].toarray() # top of the column, not including diag
+    res[label_idx:] = mat[label_idx - 1, label_idx- 1 :].toarray() # end of the row, including the diagonal
+
+    if not (lut.shape[0] == len(res)):
+        print("Shit, something went wrong! Your lut and matrix don't seem to match")
+
+    vox_coords = lut[:,1:]
+
+    idx = 0
+    for vox in vox_coords:
+        d[vox[0],vox[1],vox[2]] = res[idx]
+        idx += 1
+
+    img_out = nb.Nifti1Image(d,aff,header)
+    img_out.set_data_dtype('Float32')
+    nb.save(img_out,out_file)
+    return out_file
