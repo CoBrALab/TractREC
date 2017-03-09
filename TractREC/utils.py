@@ -416,7 +416,7 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
     :param connectome_files_index_master:
     :return:
     """
-    #TODO: consider switching to DOK for faster updating - not sure if indexing will continue to work the same way?
+
     import pandas as pd
     import numpy as np
     import scipy.sparse as sparse
@@ -442,16 +442,12 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
     #assume that the file list and the index list are in the same order, now we can build the matrix - USE NATURAL SORT!
     for idx, file in enumerate(connectome_files_list):
         print("{0}:\n  matrix: {1}\n  index : {2}".format(idx+1,file,connectome_files_index_list[idx]))
-        label_idx = np.ndarray.flatten(pd.read_csv(connectome_files_index_list[idx], header = 0).values)
+        label_idx = np.ndarray.flatten(pd.read_csv(connectome_files_index_list[idx], header = 0, dtype=np.uint32).values)
         #lookup_col = np.in1d(mat[0,:].toarray(),label_idx)
         lookup_col = label_idx - 1 #assuming that the start index is 1, which is a bad assumption?
         lookup_row = lookup_col.T
-        #mask = lookup_row[:,None]*lookup_col[None,:] #broadcast to create a 2d matrix of mat.shape with true where data will go
-        # mat[lookup_row,lookup_col] = pd.read_csv(file, sep = " ", header = None).values
-        # mat[mask] = pd.read_csv(file, sep = " ", header = None).values #THIS DOES NOT WORK, casts to 1d
-        #return mat, lookup_row,lookup_col,pd.read_csv(file, sep = " ", header = None).values
         #TODO: check to make sure that I am not overwriting any data here...? just to make sure that my indexing is working correclty...
-        mat[np.ix_(lookup_row,lookup_col)]  = pd.read_csv(file, sep = " ", header = None).values #this works (tested on small sub-matrices) but not sure if all cases are covered?
+        mat[np.ix_(lookup_row,lookup_col)]  = pd.read_csv(file, sep = " ", header = None, dtype=np.float32).values #this works (tested on small sub-matrices) but not sure if all cases are covered?
     return mat
 
 def tck2connectome_collection(tck_file, node_files, tck_weights_file = None, assign_all_mask_img = None, nthreads = 8, CLOBBER = False):
@@ -780,7 +776,7 @@ def matrix2voxel_map(label_idxs, sparse_matrix_file, lut_file, template_node_img
 
     d_orig = img.get_data()
 
-    lut_file = read_csv(lut_file, header = 0).values
+    lut_file = read_csv(lut_file, sep=" ", header = 0).values
 
     if apply_inv_affine:
         lut_file[:, 1:] = nb.affines.apply_affine(np.linalg.inv(aff), lut_file[:, 1:])
