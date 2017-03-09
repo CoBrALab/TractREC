@@ -451,12 +451,83 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
             lookup_col = label_idx - 1 #assuming that the start index is 1, which is a bad assumption?
             lookup_row = lookup_col.T
             #TODO: check to make sure that I am not overwriting any data here...? just to make sure that my indexing is working correclty...
-            print("  ... updating sparse matrix from label_id {0} to {1} ({2}x{2} subset)".format(lookup_row[0],lookup_row[-1],len(lookup_row)))
+            print("  ... updating sparse matrix from row/col {0} to {1} ({2}x{2} subset)".format(lookup_row[0],lookup_row[-1],len(lookup_row)))
             mat[np.ix_(lookup_row,lookup_col)]  = pd.read_csv(file, sep = " ", header = None, dtype=np.float32).values #this works (tested on small sub-matrices) but not sure if all cases are covered?
             print("  ... duration: {0} seconds ({1} minutes)".format(time.time()-start_time,(time.time()-start_time)/60.))
     except:
         print("Failed, returning connectome_files_list and connectome_files_index_list")
         return connectome_files_list, connectome_files_index_list
+    return mat
+
+def combine_connectome_matrices_sparse_hdf5(connectome_files_list, connectome_files_index_list, label_max = None, connectome_files_index_master = None, nrows = 1000):
+    """
+    Assumes that labels start at 1 and end at label_max, if set to None, we read through each index file and calculate it
+    :param connectome_files_list:
+    :param connectome_files_index_list:
+    :param label_max:
+    :param connectome_files_index_master:
+    :param nrows: number of rows to read from the connectome_files in one shot
+    :return:
+    """
+
+    #TODO: still very slow, but may be more efficient for RAM usage. convert to hdf5 (h5py) http://stackoverflow.com/questions/3545349/sparse-array-support-in-hdf5
+    #TODO: make multicore
+    # taking up all of RAM (16gb) after only loading the 11th of 120 files that 18000x18000 each
+    # nrows = 1000 is good for the matrix size of : 150224x150224 (optimal, using higher values means that the processing gets slooooower)
+    import pandas as pd
+    import numpy as np
+    import scipy.sparse as sparse
+    import h5py
+
+    hdf5_fname = connectome_files_list[0].split(".")[0] + ".hdf5"
+
+    if not isinstance(connectome_files_index_list, list):
+        connectome_files_index_list = [connectome_files_index_list]
+    if not isinstance(connectome_files_list, list):
+        connectome_files_list = [connectome_files_list]
+
+    #first check the indices so you know how large things are
+    if label_max is None:
+        label_max = 0
+        for idx, file in enumerate(connectome_files_index_list):
+            print(file)
+            label_idx = np.ndarray.flatten(pd.read_csv(file, header = 0, dtype=np.uint32).values) #read quickly, then break out of the array of arrays of dimension 1
+            if np.max(label_idx) > label_max:
+                label_max = np.max(label_idx)
+    mat = sparse.lil_matrix((label_max,label_max))
+
+    if nrows is None:
+        nrows = label_max
+    # # open a file
+    # f = h5py.File(hdf5_fname, mode = 'w')
+    # f.create_dataset('01')
+
+    print("\n--------------------------------------------------------------\nConnectome combination from {0} files in progress:".format(len(connectome_files_list)))
+    print("  Attempting to construct a {0}x{0} sparse matrix from {1} connectome files".format(label_max,len(connectome_files_list)))
+    import time
+    #assume that the file list and the index list are in the same order, now we can build the matrix - USE NATURAL SORT!
+    # try:
+    for idx, file in enumerate(connectome_files_list):
+        skiprows = 0
+        print("{0}:\n  matrix: {1}\n  index : {2}".format(idx + 1, file, connectome_files_index_list[idx]))
+        label_idx = np.ndarray.flatten(pd.read_csv(connectome_files_index_list[idx], header=0, dtype=np.uint32).values)
+        lookup_col = label_idx - 1
+        start_time = time.time()
+
+        print("  Updating sparse matrix by extracting {0} subsets from the connectome file:".format(np.ceil(len(label_idx) / nrows).astype(int)))
+        for subset in np.arange(1, np.ceil(len(label_idx) / nrows)+1):
+            # use subset of rows, all columns
+            lookup_row = label_idx[skiprows:skiprows+nrows] - 1 #assuming that the start index is 1, which is a bad assumption?
+            #TODO: check to make sure that I am not overwriting any data here...? just to make sure that my indexing is working correclty...
+            print("      - subset {2}  \tlabel ids ({0}x{1} matrix subset)".format(len(lookup_row),len(lookup_col),subset.astype(int))),
+            submat = pd.read_csv(file, sep = " ", header = None, dtype=np.float32, nrows=nrows, skiprows=skiprows).values
+
+            mat[np.ix_(lookup_row,lookup_col)]  = submat
+            print(": {0:.2f} sec ({1:.2f} min)".format(time.time()-start_time,(time.time()-start_time)/60.))
+            skiprows = (subset*nrows).astype(int) #b/c we imported division, need to be an int for indexing
+    # except:
+    #     print("Failed, returning connectome_files_list and connectome_files_index_list")
+    #     return connectome_files_list, connectome_files_index_list
     return mat
 
 
