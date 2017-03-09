@@ -431,23 +431,29 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
         label_max = 0
         for idx, file in enumerate(connectome_files_index_list):
             print(file)
-            label_idx = np.ndarray.flatten(pd.read_csv(file, header = 0).values).astype(int) #read quickly, then break out of the array of arrays of dimension 1
+            label_idx = np.ndarray.flatten(pd.read_csv(file, header = 0, dtype=np.uint32).values) #read quickly, then break out of the array of arrays of dimension 1
             if np.max(label_idx) > label_max:
                 label_max = np.max(label_idx)
-    mat = sparse.lil_matrix((label_max,label_max)) #allow space for row and column IDs, and makes indexing super easy
-    #mat[0, :] = np.arange(0, label_max + 1)[:,np.newaxis].T # column id
-    #mat[:, 0] = np.arange(0, label_max + 1)[:,np.newaxis] # row id (labels)
-    print("Connectome combination from {0} files in progress:".format(len(connectome_files_list)))
-
+    mat = sparse.lil_matrix((label_max,label_max))
+    print("\n--------------------------------------------------------------\nConnectome combination from {0} files in progress:".format(len(connectome_files_list)))
+    print("  Attempting to construct a {0}x{0} sparse matrix".format(label_max))
+    import time
     #assume that the file list and the index list are in the same order, now we can build the matrix - USE NATURAL SORT!
-    for idx, file in enumerate(connectome_files_list):
-        print("{0}:\n  matrix: {1}\n  index : {2}".format(idx+1,file,connectome_files_index_list[idx]))
-        label_idx = np.ndarray.flatten(pd.read_csv(connectome_files_index_list[idx], header = 0, dtype=np.uint32).values)
-        #lookup_col = np.in1d(mat[0,:].toarray(),label_idx)
-        lookup_col = label_idx - 1 #assuming that the start index is 1, which is a bad assumption?
-        lookup_row = lookup_col.T
-        #TODO: check to make sure that I am not overwriting any data here...? just to make sure that my indexing is working correclty...
-        mat[np.ix_(lookup_row,lookup_col)]  = pd.read_csv(file, sep = " ", header = None, dtype=np.float32).values #this works (tested on small sub-matrices) but not sure if all cases are covered?
+    try:
+        for idx, file in enumerate(connectome_files_list):
+            start_time = time.time()
+            print("{0}:\n  matrix: {1}\n  index : {2}".format(idx+1,file,connectome_files_index_list[idx]))
+            label_idx = np.ndarray.flatten(pd.read_csv(connectome_files_index_list[idx], header = 0, dtype=np.uint32).values)
+            #lookup_col = np.in1d(mat[0,:].toarray(),label_idx)
+            lookup_col = label_idx - 1 #assuming that the start index is 1, which is a bad assumption?
+            lookup_row = lookup_col.T
+            #TODO: check to make sure that I am not overwriting any data here...? just to make sure that my indexing is working correclty...
+            print("  ... updating sparse matrix from label_id {0} to {1} ({2}x{2} subset)".format(lookup_row[0],lookup_row[-1],len(lookup_row)))
+            mat[np.ix_(lookup_row,lookup_col)]  = pd.read_csv(file, sep = " ", header = None, dtype=np.float32).values #this works (tested on small sub-matrices) but not sure if all cases are covered?
+            print("  ... duration: {0} seconds ({1} minutes)".format(time.time()-start_time,(time.time()-start_time)/60.))
+    except:
+        print("Failed, returning connectome_files_list and connectome_files_index_list")
+        return connectome_files_list, connectome_files_index_list
     return mat
 
 def tck2connectome_collection(tck_file, node_files, tck_weights_file = None, assign_all_mask_img = None, nthreads = 8, CLOBBER = False):
