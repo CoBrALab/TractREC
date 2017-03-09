@@ -500,6 +500,7 @@ def combine_connectome_matrices_sparse_hdf5(connectome_files_list, connectome_fi
         nrows = label_max
     # # open a file
     # f = h5py.File(hdf5_fname, mode = 'w')
+    # subset_name = file.split("_subset_")[1].split("_")[0] + "_" + file.split("_subset_")[1].split("_")[1] #grab the subset numbers, in case we will use this to store the data in separate datasets
     # f.create_dataset('01')
 
     print("\n--------------------------------------------------------------\nConnectome combination from {0} files in progress:".format(len(connectome_files_list)))
@@ -509,7 +510,7 @@ def combine_connectome_matrices_sparse_hdf5(connectome_files_list, connectome_fi
     # try:
     for idx, file in enumerate(connectome_files_list):
         skiprows = 0
-        print("{0}:\n  matrix: {1}\n  index : {2}".format(idx + 1, file, connectome_files_index_list[idx]))
+        print("{0} of {3}:\n  matrix: {1}\n  index : {2}".format(idx + 1, file, connectome_files_index_list[idx],len(connectome_files_list)))
         label_idx = np.ndarray.flatten(pd.read_csv(connectome_files_index_list[idx], header=0, dtype=np.uint32).values)
         lookup_col = label_idx - 1
         start_time = time.time()
