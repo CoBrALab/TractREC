@@ -417,6 +417,9 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
     :return:
     """
 
+    #TODO: very slow, convert to hdf5 (h5py) http://stackoverflow.com/questions/3545349/sparse-array-support-in-hdf5
+    # taking up all of RAM (16gb) after only loading the 11th of 120 files that 18000x18000 each
+
     import pandas as pd
     import numpy as np
     import scipy.sparse as sparse
@@ -455,6 +458,8 @@ def combine_connectome_matrices_sparse(connectome_files_list, connectome_files_i
         print("Failed, returning connectome_files_list and connectome_files_index_list")
         return connectome_files_list, connectome_files_index_list
     return mat
+
+
 
 def tck2connectome_collection(tck_file, node_files, tck_weights_file = None, assign_all_mask_img = None, nthreads = 8, CLOBBER = False):
     """
