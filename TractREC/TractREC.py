@@ -270,7 +270,8 @@ def map_values_to_label_file(values_label_lut_csv_fname, label_img_fname,
                              value_colName="Value",
                              label_idx_colName="Index",
                              SKIP_ZERO_IDX=True,
-                             MATCH_VALUE_TO_LABEL_VIA_MATRIX=False):
+                             MATCH_VALUE_TO_LABEL_VIA_MATRIX=False,
+                             VERBOSE = False):
     """
     Map from values/index dataframe to labels in label_fname (for visualising results in label space)
 
@@ -301,13 +302,14 @@ def map_values_to_label_file(values_label_lut_csv_fname, label_img_fname,
         values = values_label_lut_csv_fname[:,1]
         
     if SKIP_ZERO_IDX and 0 in indices:
-        indices.remove(0)
+        indices = np.delete(indices, np.where(indices == 0))
 
     d,a,h = imgLoad(label_img_fname,RETURN_HEADER=True)
     d_out = np.zeros_like(d).astype(np.float32)
 
     for idx,index in enumerate(indices):
-        print index, values[idx]
+        if VERBOSE:
+            print index, values[idx]
         d_out[d==index] = values[idx]
 
     niiSave(out_mapped_label_fname,d_out,a,header=h)
