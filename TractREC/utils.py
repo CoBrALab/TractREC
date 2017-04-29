@@ -494,42 +494,59 @@ def combine_connectome_matrices_sparse_hdf5(connectome_files_list, connectome_fi
             label_idx = np.ndarray.flatten(pd.read_csv(file, header = 0, dtype=np.uint32).values) #read quickly, then break out of the array of arrays of dimension 1
             if np.max(label_idx) > label_max:
                 label_max = np.max(label_idx)
-    mat = sparse.lil_matrix((label_max,label_max))
-
+    #mat = sparse.lil_matrix((label_max,label_max))
+    f = h5py.File(hdf5_fname,'a')
+    dset_name = 'all' #TODO do both types of matrices in the same file?
+#    dset = f.create_dataset(dset_name, dtype=np.float32, shape=(label_max,label_max), compression='gzip', compression_opts=9)
+    dset=f['all']
     if nrows is None:
         nrows = label_max
+
     # # open a file
     # f = h5py.File(hdf5_fname, mode = 'w')
     # subset_name = file.split("_subset_")[1].split("_")[0] + "_" + file.split("_subset_")[1].split("_")[1] #grab the subset numbers, in case we will use this to store the data in separate datasets
     # f.create_dataset('01')
-
+    dset=f[dset_name]
     print("\n--------------------------------------------------------------\nConnectome combination from {0} files in progress:".format(len(connectome_files_list)))
     print("  Attempting to construct a {0}x{0} sparse matrix from {1} connectome files".format(label_max,len(connectome_files_list)))
     import time
     #assume that the file list and the index list are in the same order, now we can build the matrix - USE NATURAL SORT!
-    # try:
-    for idx, file in enumerate(connectome_files_list):
-        skiprows = 0
-        print("{0} of {3}:\n  matrix: {1}\n  index : {2}".format(idx + 1, file, connectome_files_index_list[idx],len(connectome_files_list)))
-        label_idx = np.ndarray.flatten(pd.read_csv(connectome_files_index_list[idx], header=0, dtype=np.uint32).values)
-        lookup_col = label_idx - 1
-        start_time = time.time()
+    try:
+        for idx, file in enumerate(connectome_files_list):
+            skiprows = 0
+            print("{0} of {3}:\n  matrix: {1}\n  index : {2}".format(idx + 1, file, connectome_files_index_list[idx],len(connectome_files_list)))
+            label_idx = np.ndarray.flatten(pd.read_csv(connectome_files_index_list[idx], header=0, dtype=np.uint32).values)
+            lookup_col = label_idx - 1
+            start_time = time.time()
 
-        print("  Updating sparse matrix by extracting {0} subsets from the connectome file:".format(np.ceil(len(label_idx) / nrows).astype(int)))
-        for subset in np.arange(1, np.ceil(len(label_idx) / nrows)+1):
-            # use subset of rows, all columns
-            lookup_row = label_idx[skiprows:skiprows+nrows] - 1 #assuming that the start index is 1, which is a bad assumption?
-            #TODO: check to make sure that I am not overwriting any data here...? just to make sure that my indexing is working correclty...
-            print("      - subset {2}  \tlabel ids ({0}x{1} matrix subset)".format(len(lookup_row),len(lookup_col),subset.astype(int))),
-            submat = pd.read_csv(file, sep = " ", header = None, dtype=np.float32, nrows=nrows, skiprows=skiprows).values
+            print("  Updating sparse matrix by extracting {0} subsets from the connectome file:".format(np.ceil(len(label_idx) / nrows).astype(int)))
+            for subset in np.arange(1, np.ceil(len(label_idx) / nrows)+1):
+                # use subset of rows, all columns
+                lookup_row = label_idx[skiprows:skiprows+nrows] - 1 #assuming that the start index is 1, which is a bad assumption?
+                #TODO: check to make sure that I am not overwriting any data here...? just to make sure that my indexing is working correclty...
+                print("      - subset {2}  \tlabel ids ({0}x{1} matrix subset)".format(len(lookup_row),len(lookup_col),subset.astype(int))),
+                submat = pd.read_csv(file, sep = " ", header = None, dtype=np.float32, nrows=nrows, skiprows=skiprows).values
 
-            mat[np.ix_(lookup_row,lookup_col)]  = submat
-            print(": {0:.2f} sec ({1:.2f} min)".format(time.time()-start_time,(time.time()-start_time)/60.))
-            skiprows = (subset*nrows).astype(int) #b/c we imported division, need to be an int for indexing
-    # except:
-    #     print("Failed, returning connectome_files_list and connectome_files_index_list")
+                #mat[np.ix_(lookup_row,lookup_col)]  = submat
+                return dset, lookup_row,lookup_col,submat
+
+                #cant do fancy indexing, need to do something else...
+                idx = 1
+                for row in lookup_row:
+                    #for col in lookup_col:
+                    dset[row, lookup_col] = np.ndarray.flatten(submat[row,:])
+                    print idx
+                    idx+=1
+
+                dset[lookup_row,lookup_col] = submat
+
+                print(": {0:.2f} sec ({1:.2f} min)".format(time.time()-start_time,(time.time()-start_time)/60.))
+                skiprows = (subset*nrows).astype(int) #b/c we imported division, need to be an int for indexing
+    except:
+        print("Failed, returning connectome_files_list and connectome_files_index_list")
+        f.close()
     #     return connectome_files_list, connectome_files_index_list
-    return mat
+    return hdf5_fname
 
 
 
