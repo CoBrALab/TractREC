@@ -44,8 +44,11 @@ def niiSave(full_fileName, data, aff, header=None, data_type='float32', CLOBBER=
     """
     import os
     import nibabel as nb
-
+    import numpy as np
     img = nb.Nifti1Image(data, aff, header=header)
+    img.header['cal_min'] = np.min(data)
+    img.header['cal_max'] = np.max(data)
+
     if data_type is not None:  # if there is a particular data_type chosen, set it
         # data=data.astype(data_type)
         img.set_data_dtype(data_type)
