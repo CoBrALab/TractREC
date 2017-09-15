@@ -914,3 +914,76 @@ def matrix2voxel_map(label_idxs, sparse_matrix_file, lut_file, template_node_img
         out_files.append(out_file)
         print("  {}\n".format(out_file))
     return out_files
+
+def create_civet_img(left_statmap_file,right_statmap_file,col_name,thresh_col_name = None,thresh_val = 0,null_val=0,
+                     thresh_direction = "less_than", header_in_file = True,left_obj_file = None, right_obj_file = None,
+                     vertex_mask_civet_cc_file = "/opt/quarantine/resources/CIVET-CC-mask.txt",out_root_name = None):
+    # XXX NOT FINISHED, SHOULD MAKE THIS WORK WITHIN PYTHON rather than relying on other scripts :-/
+    # this is pretty specific for the CIC implementation at this point, would be great to have it more general and pythonic...
+    # right and left_col are either names or indices (0-based) for column lookup
+    # thresh_col_name is another column name that the threshold value is used on to filter the displayed results
+    #Automatically generates a standardized view of a brain, using stats files for left and right hemispheres (from RMINC)
+    #Colourizes objects using stats files, ray traces standard views and them merges them together
+
+    import pandas as pd
+    import numpy as np
+    import subprocess
+    import os
+
+    if header_in_file:
+        df_left = pd.read_csv(left_statmap_file,header=0)
+        df_right = pd.read_csv(right_statmap_file, header=0)
+    else:
+        df_left = pd.read_csv(left_statmap_file,header=None)
+        df_right = pd.read_csv(right_statmap_file,header=None)
+
+    if isinstance(col_name,int):
+        stats_left = df_left.ix[:,col_name]
+        stats_right = df_right.ix[:,col_name]
+        if thresh_col_name is not None:
+            thresh_left = df_left.ix[:,thresh_col_name]
+            thresh_right = df_right.ix[:,thresh_col_name]
+    else:
+        stats_left = df_left[col_name]
+        stats_right = df_right[col_name]
+        if thresh_col_name is not None:
+            thresh_left = df_left[thresh_col_name]
+            thresh_right = df_right[thresh_col_name]
+
+    #threshold greater and lesser values
+    if thresh_col_name is not None:
+        if thresh_direction is "less_than":
+            stats_left[thresh_left < thresh_val] = null_val
+            stats_right[thresh_right < thresh_val] = null_val
+        elif thresh_direction is "greater_than":
+            stats_left[thresh_left > thresh_val] = null_val
+            stats_right[thresh_right > thresh_val] = null_val
+    else:
+        if thresh_direction is "less_than":
+            stats_left[stats_left < thresh_val] = null_val
+            stats_right[stats_right < thresh_val] = null_val
+        elif thresh_direction is "greater_than":
+            stats_left[stats_left > thresh_val] = null_val
+            stats_right[stats_right > thresh_val] = null_val
+
+    if vertex_mask_civet_cc_file is not None:
+        vertex_mask_civet_cc = pd.read_csv(vertex_mask_civet_cc_file,header=None)
+        stats_left[vertex_mask_civet_cc == 0] = null_val
+        stats_right[vertex_mask_civet_cc == 0] = null_val
+
+    if out_root_name is None:
+        out_root_name_L = left_statmap_file.split(".")[0:-1][0]
+        out_root_name_R = right_statmap_file.split(".")[0:-1][0]
+    else:
+        out_root_name_L = out_root_name + "left"
+        out_root_name_R = out_root_name + "right"
+
+    out_name_L = out_root_name_L + "_" + col_name + ".txt"
+    out_name_R = out_root_name_R + "_" + col_name + ".txt"
+
+    #write to file
+    with open(out_name_L,'a') as f1:
+        f1.write(stats_left + '\n')
+    with open(out_name_R,'a') as f1:
+        f1.write(stats_right + '\n')
+
