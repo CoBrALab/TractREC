@@ -650,10 +650,10 @@ def extract_label_volume(label_files,IDs=None, label_df=None,
                                      thresh_val=thresh_val, 
                                      max_val=max_val,
                                      thresh_type=thresh_type, 
-                                     erode_vox=None, zfill_num=3,
-                                     DEBUG_DIR=None, VERBOSE=False,
+                                     erode_vox=None, zfill_num=zfill_num,
+                                     DEBUG_DIR=None, VERBOSE=VERBOSE,
                                      USE_LABEL_RES=True, ALL_FILES_ORDERED=True,
-                                     volume_idx=0)
+                                     volume_idx=volume_idx)
     return df
 
 def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=None, label_subset_idx=None,
