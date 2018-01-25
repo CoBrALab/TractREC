@@ -463,8 +463,9 @@ def extract_stats_from_masked_image(img_fname, mask_fname, thresh_mask_fname=Non
             print(
                 " I will also force all your label values to be integers as a hack to fix non-integer values stored in the file. np.rint(labels).astype(int)")
         mask = np.rint(mask).astype(int)  # round with rint and the convert to int
-    else:
-        print(np.unique(mask))
+    else: #cast labels into integers
+        mask = mask.astype(int)
+
     # dumb way to do this,but too much coffee today
     if USE_LABEL_RES:
         chosen_aff = maff
