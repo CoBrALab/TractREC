@@ -619,7 +619,7 @@ def extract_label_volume(label_files,IDs=None, label_df=None,
                          label_subset_idx=None, label_tag="label_",
                          thresh_mask_files=None, ROI_mask_files=None,
                          thresh_val=None, max_val=None,thresh_type=None,
-                         zfill_num=3, VERBOSE=False, volume_idx=0):
+                         zfill_num=3, VERBOSE=False, volume_idx=0, DEBUG_DIR=None):
     """
     wrapper for extract_quantitative metric to calculate volume from label files,
     assumes: ALL_FILES_ORDERED= True
@@ -651,7 +651,7 @@ def extract_label_volume(label_files,IDs=None, label_df=None,
                                      max_val=max_val,
                                      thresh_type=thresh_type, 
                                      erode_vox=None, zfill_num=zfill_num,
-                                     DEBUG_DIR=None, VERBOSE=VERBOSE,
+                                     DEBUG_DIR=DEBUG_DIR, VERBOSE=VERBOSE,
                                      USE_LABEL_RES=True, ALL_FILES_ORDERED=True,
                                      volume_idx=volume_idx)
     return df
