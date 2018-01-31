@@ -941,12 +941,20 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 df_4d.loc[idx, 'thresh_type'] = thresh_type  # this is overkill, since it should always be the same
                 df_4d.loc[idx, 'ROI_mask'] = ROI_mask_fname
                 if (metric is 'all'):
-                    df_4d.loc[idx, 7:7+1*len(label_subset_idx)] = res.mean
-                    df_4d.loc[idx, 7+1*len(label_subset_idx):7+2*len(label_subset_idx)] = res.median
-                    df_4d.loc[idx, 7+2*len(label_subset_idx):7+3*len(label_subset_idx)] = res.std
-                    df_4d.loc[idx, 7+3*len(label_subset_idx):7+4*len(label_subset_idx)] = res.volume
-                    df_4d.loc[idx, 7+4*len(label_subset_idx):7+5*len(label_subset_idx)] = [len(a_idx) for a_idx in res.data]  # gives num vox
-                    df_4d.loc[idx, 7+5*len(label_subset_idx):7+6*len(label_subset_idx)] = res.sum  # gives num vox
+                    df_4d.loc[:,df_4d.columns[df_4d.columns.str.endswith(pat = '_mean')]] = res.mean
+                    df_4d.loc[:,df_4d.columns[df_4d.columns.str.endswith(pat = '_median')]] = res.median
+                    df_4d.loc[:,df_4d.columns[df_4d.columns.str.endswith(pat = '_std')]] = res.std
+                    df_4d.loc[:,df_4d.columns[df_4d.columns.str.endswith(pat = '_volume')]] = res.volume
+                    df_4d.loc[:,df_4d.columns[df_4d.columns.str.endswith(pat = '_vox_count')]] = [len(a_idx) for a_idx in res.data]
+                    df_4d.loc[:,df_4d.columns[df_4d.columns.str.endswith(pat = '_sum')]] = res.sum
+                    
+                    ## old way of doing this, but the indexing of pandas changed so this is no longer valid
+                    # df_4d.loc[idx, 7:7+1*len(label_subset_idx)] = res.mean
+                    # df_4d.loc[idx, 7+1*len(label_subset_idx):7+2*len(label_subset_idx)] = res.median
+                    # df_4d.loc[idx, 7+2*len(label_subset_idx):7+3*len(label_subset_idx)] = res.std
+                    # df_4d.loc[idx, 7+3*len(label_subset_idx):7+4*len(label_subset_idx)] = res.volume
+                    # df_4d.loc[idx, 7+4*len(label_subset_idx):7+5*len(label_subset_idx)] = [len(a_idx) for a_idx in res.data]  # gives num vox
+                    # df_4d.loc[idx, 7+5*len(label_subset_idx):7+6*len(label_subset_idx)] = res.sum  # gives num vox
                 #                elif metric is 'data':
 #                    data_string_list=[None]*len(res.data)
 #                    for string_list_idx,res_data_single_sub in enumerate(res.data):
@@ -955,7 +963,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
 #                            data_string=data_string+" "+"{0:.4f}".format(val)
 #                        data_string_list[string_list_idx]=data_string
 #                    df_4d.loc[idx,7::] = data_string_list
-                elif metric is 'data':
+                elif metric is 'data': #only provide the volume in the dataframe, full data is passed in the structure all_res_data
                     df_4d.loc[idx, 7::] = res.volume
                     all_res_data.append(res)
                 elif metric is 'mean':
