@@ -1318,7 +1318,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
 
     if not (os.path.isfile(seg_idx_fname)) or CLOBBER:  # if the idx file exists, don't bother doing this again
         if not BY_SLICE:
-            data_list = [nb.load(fn).get_data()[..., np.newaxis] for fn in files]  # load all of the files
+            data_list = [nb.load(fn).get_fdata()[..., np.newaxis] for fn in files]  # load all of the files
             combined = np.concatenate(data_list, axis=-1)  # concatenate all of the input data
 
             combined = np.concatenate((np.zeros_like(data_list[0]), combined),
@@ -1334,8 +1334,8 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
                 axis=-1) == 0] = 0  # where there is no difference between volumes, this should be the mask, set to 0
 
             ##%% create soft segmentation to show strength of the dominant tract in each voxel
-            seg_part = np.zeros_like(hard_seg)
-            seg_temp = np.zeros_like(hard_seg)
+            seg_part = np.zeros_like(hard_seg,dtype=np.float32)
+            seg_temp = np.zeros_like(hard_seg,dtype=np.float32)
             seg_total = combined.sum(axis=-1)
 
             idx = 1
@@ -1383,6 +1383,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
             # seg_pct2[seg_pct2==-1]=0 #remove those -1s in the regions that used to be 0
 
             ##%%save
+            ## we are assuming that 
             aff = nb.load(files[0]).affine
             header = nb.load(files[0]).header
 
@@ -1390,12 +1391,12 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
             new_nii.set_data_dtype('uint32')
             new_nii.to_filename(seg_idx_fname)
 
-            new_nii = nb.Nifti1Image(seg_total.astype('uint32'), aff, header)
-            new_nii.set_data_dtype('uint32')
+            new_nii = nb.Nifti1Image(seg_total.astype('float32'), aff, header)
+            new_nii.set_data_dtype('float32')
             new_nii.to_filename(seg_tot_fname)
 
-            new_nii = nb.Nifti1Image(seg_part.astype('uint32'), aff, header)
-            new_nii.set_data_dtype('uint32')
+            new_nii = nb.Nifti1Image(seg_part.astype('float32'), aff, header)
+            new_nii.set_data_dtype('float32')
             new_nii.to_filename(seg_prt_fname)
 
             """
@@ -1427,7 +1428,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
             hard_seg_full = np.zeros(data_shape)
             seg_part_full = np.zeros(data_shape)
             seg_total_full = np.zeros(data_shape)
-            seg_pct_full = np.zeros_like(hard_seg_full)
+            seg_pct_full = np.zeros_like(hard_seg_full,dtype=np.float32)
 
             print("Data shape (single image): " + str(data_shape))
             print("Slice: "),
@@ -1436,7 +1437,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
             for slice_idx in np.arange(0, data_shape[-1]):
                 print(slice_idx),
 
-                data_list = [nb.load(fn).get_data()[:, :, slice_idx, np.newaxis] for fn in
+                data_list = [nb.load(fn).get_fdata()[:, :, slice_idx, np.newaxis] for fn in
                              files]  # load all of the files
                 combined = np.concatenate(data_list, axis=-1)  # concatenate all of the input data
                 combined = np.concatenate((np.zeros_like(data_list[0]), combined),
@@ -1497,12 +1498,12 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
             new_nii.set_data_dtype('uint32')
             new_nii.to_filename(seg_idx_fname)
 
-            new_nii = nb.Nifti1Image(seg_total_full.astype('uint32'), aff, header)
-            new_nii.set_data_dtype('uint32')
+            new_nii = nb.Nifti1Image(seg_total_full.astype('float32'), aff, header)
+            new_nii.set_data_dtype('float32')
             new_nii.to_filename(seg_tot_fname)
 
-            new_nii = nb.Nifti1Image(seg_part_full.astype('uint32'), aff, header)
-            new_nii.set_data_dtype('uint32')
+            new_nii = nb.Nifti1Image(seg_part_full.astype('float32'), aff, header)
+            new_nii.set_data_dtype('float32')
             new_nii.to_filename(seg_prt_fname)
 
             """
