@@ -1456,8 +1456,8 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
                     seg_total_full[:, :, slice_idx] = combined.sum(axis=-1)
 
                     # declare empty matrices for this loop for partial and temp for calculating the partial (num of winning seg) file
-                    seg_part = np.zeros_like(hard_seg)
-                    seg_temp = np.zeros_like(hard_seg)
+                    seg_part = np.zeros_like(hard_seg,dtype=np.float32)
+                    seg_temp = np.zeros_like(hard_seg,dtype=np.float32)
 
                     idx = 1
                     for seg in files:
