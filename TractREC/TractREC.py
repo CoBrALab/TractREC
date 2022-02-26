@@ -312,7 +312,7 @@ def map_values_to_label_file(values_label_lut_csv_fname, label_img_fname,
 
     for idx,index in enumerate(indices):
         if VERBOSE:
-            print index, values[idx]
+            print("{}, {}".format(index, values[idx]))
         d_out[d==index] = values[idx]
 
     niiSave(out_mapped_label_fname,d_out,a,header=h)
