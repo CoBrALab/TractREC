@@ -837,19 +837,19 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
             label_file = [s for s in label_files if ID in s]  # make sure our label file is in the list that was passed
             if len(metric_file) > 1:
                 print("")
-                print "OH SHIT, too many metric files. This should not happen!"
+                print("OH SHIT, too many metric files. This should not happen!")
             elif len(metric_file) == 0:
                 print("")
-                print "OH SHIT, no matching metric file for: " + ID
+                print("OH SHIT, no matching metric file for: " + ID)
                 print("This subject has not been processed")
                 DATA_EXISTS = False
 
             if len(label_file) > 1:
                 print("")
-                print "OH SHIT, too many label files. This should not happen!"
+                print("OH SHIT, too many label files. This should not happen!")
             elif len(label_file) == 0:
                 print("")
-                print "OH SHIT, no matching label file for: " + ID
+                print("OH SHIT, no matching label file for: " + ID)
                 print("This subject has not been processed")
                 DATA_EXISTS = False
         else: #files should already be ordered
@@ -866,11 +866,11 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                                                                                 # is in the list that was passed
                 if len(thresh_mask_fname) > 1:
                     print("")
-                    print "OH SHIT, too many threshold mask files. This should not happen!"
+                    print("OH SHIT, too many threshold mask files. This should not happen!")
 
                 elif len(thresh_mask_fname) == 0:
                     print("")
-                    print "OH SHIT, no matching threshold mask file for: " + ID
+                    print("OH SHIT, no matching threshold mask file for: " + ID)
                     DATA_EXISTS = False
             else:
                 thresh_mask_fname = thresh_mask_files[idx]
@@ -884,10 +884,10 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 ROI_mask_fname = [s for s in ROI_mask_files if
                                   ID in s]  # make sure our label file is in the list that was passed
                 if len(ROI_mask_fname) > 1:
-                    print "OH SHIT, too many threshold mask files. This should not happen!"
+                    print("OH SHIT, too many threshold mask files. This should not happen!")
 
                 elif len(ROI_mask_fname) == 0:
-                    print "OH SHIT, no matching ROI mask file for: " + ID
+                    print("OH SHIT, no matching ROI mask file for: " + ID)
                     DATA_EXISTS = False
             else:
                 ROI_mask_fname = ROI_mask_files[idx]
@@ -986,7 +986,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 print("##=====================================================================##")
                 print("Darn! There is something wrong with: " + ID)
                 print("##=====================================================================##")
-    print ""
+    print("")
     if metric is not 'data':
         return df_4d
     else:
@@ -1250,18 +1250,18 @@ def qcheck(user='stechr', delay=5 * 60):
     import subprocess
 
     print(time.strftime("%Y_%m_%d %H:%M:%S"))
-    print "=== start time ===",
+    print("=== start time ===")
     start = time.time()
     print(start)
     try:
         while len(subprocess.check_output(['qstat', '-u', user, '|', 'grep', user], shell=True)) > 0:
-            print ". ",
+            print(". ")
             # print(len(subprocess.check_output(['qstat', '-u', 'tachr'],shell=True)))
             time.sleep(delay)
     except:
         pass
 
-    print "=== end time ===",
+    print("=== end time ===")
     print(time.time())
     print(time.strftime("%Y_%m_%d %H:%M:%S"))
     duration = time.time() - start
@@ -1355,7 +1355,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
                         hard_seg_indexed[hard_seg == idx] = seg_val
                         idx += 1
                 else:
-                    print ""
+                    print("")
                     print("====== YOU DID NOT ENTER THE CORRECT NUMBER OF VALUES FOR segmentation_index ======")
                     return
 
@@ -1478,7 +1478,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
                                 hard_seg_indexed[hard_seg == idx] = seg_val
                                 idx += 1
                         else:
-                            print ""
+                            print("")
                             print("====== YOU DID NOT ENTER THE CORRECT NUMBER OF VALUES FOR segmentation_index ======")
                             return None
 
@@ -1602,15 +1602,15 @@ def dki_dke_prep_data_bvals_bvecs(data_fname, bvals_file, bvecs_file, out_dir=No
                                      os.path.basename(data_fname).split(".nii")[0] + "_bval" + str(bval) + ".nii.gz")
             vol_list = str([i for i, v in enumerate(bvals) if v == bval]).strip('[]').replace(" ", "")
             cmd_input = ['fslselectvols', '-i', data_fname, '-o', out_fname, '--vols=' + vol_list]
-            print ""
-            print " ".join(cmd_input)
+            print("")
+            print(" ".join(cmd_input))
             cmd_txt.append(cmd_input)
             if not os.path.isfile(out_fname) or CLOBBER:
                 if RUN_LOCALLY:
                     subprocess.call(cmd_input)
             if bval == 0:  # we mean this value if we are working with b=0 file
                 cmd_input = ['fslmaths', out_fname, '-Tmean', out_fname]
-                print " ".join(cmd_input)
+                print(" ".join(cmd_input))
                 cmd_txt.append(cmd_input)
                 if RUN_LOCALLY:
                     subprocess.call(cmd_input)  # no CLOBBER check here, since we actually want to overwrite this file
@@ -1630,8 +1630,8 @@ def dki_dke_prep_data_bvals_bvecs(data_fname, bvals_file, bvecs_file, out_dir=No
     cmd_input = ['fslmerge', '-t', out_fname]
     for fname in fname_list:
         cmd_input = cmd_input + [fname]
-    print ""
-    print " ".join(cmd_input)
+    print("")
+    print(" ".join(cmd_input))
     cmd_txt.append(cmd_input)
     if not os.path.isfile(out_fname) or CLOBBER:
         if RUN_LOCALLY:
