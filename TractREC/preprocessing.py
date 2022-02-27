@@ -348,10 +348,10 @@ def run_diffusion_kurtosis_estimator_dipy(data_fnames,bvals_fnames,bvecs_fnames,
         create_dir(out_dir)
         #check that we are pulling the correct files
         if len(fname)>1 or len(bvals)>1 or len(bvecs)>1:
-            print "OH SHIT, too many possible files. This should not happen!"
+            print("OH SHIT, too many possible files. This should not happen!")
             DATA_EXISTS=False
         elif len(fname)<1 or len(bvals)<1 or len(bvecs)<1:
-            print "OH SHIT, no matching file for this ID: " + ID
+            print("OH SHIT, no matching file for this ID: " + ID)
             DATA_EXISTS=False
         else:
             fname=fname[0] #break it out of the list of one  
@@ -434,7 +434,7 @@ def run_amico_noddi_dipy(subject_root_dir,out_root_dir,subject_dirs=None,b0_thr=
         code=["#!/usr/bin/python","","import sys","sys.path.append('{0}')".format(caller_path),"sys.path.append('{0}')".format(spams_path),"import spams","import amico"]
         code.append("import spams" )
         code.append("")
-        code.append("print amico.__file__")
+        code.append("print(amico.__file__)")
         code.append("amico.core.setup()")
         code.append("ae=amico.Evaluation('{subject_root_dir}','{ID}',output_path='{output_dir}')".format(subject_root_dir=subject_root_dir,ID=ID,output_dir=out_dir))
         code.append("amico.util.fsl2scheme('{bvals_fname}', '{bvecs_fname}','{scheme_fname}',{bStep})".format(bvals_fname=bvals_fname, bvecs_fname=bvecs_fname,scheme_fname=scheme_fname,bStep=bStep))
@@ -547,7 +547,7 @@ def run_amico_noddi_dipy_v2(subject_root_dir,dwi_fnames,brain_mask_fnames,bvals_
         code=["#!/usr/bin/python","","import sys","sys.path.append('{0}')".format(caller_path),"sys.path.append('{0}')".format(spams_path),"import spams","import amico"]
         code.append("import spams" )
         code.append("")
-        code.append("print amico.__file__")
+        code.append("print(amico.__file__)")
         code.append("amico.core.setup()")
         code.append("ae=amico.Evaluation('{subject_root_dir}','{ID}',output_path='{output_dir}')".format(subject_root_dir=subject_root_dir,ID=ID,output_dir=out_dir))
         code.append("amico.util.fsl2scheme('{bvals_fname}', '{bvecs_fname}','{scheme_fname}',{bStep})".format(bvals_fname=bvals_fname, bvecs_fname=bvecs_fname,scheme_fname=scheme_fname,bStep=bStep))
@@ -610,7 +610,7 @@ def interp_discrete_hist_peaks(input_fname, output_fname=None, value_count_cutof
 
     for idx, mybin in enumerate(left):
         #vox_vals = np.unique(d[np.logical_and(d >= left[idx], d <= right[idx])])
-        print mybin
+        print(mybin)
         # should only be one value, but loop over it just in case...
         # loop across vox_vals
         #for vox_val in vox_vals:

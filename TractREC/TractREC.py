@@ -312,7 +312,7 @@ def map_values_to_label_file(values_label_lut_csv_fname, label_img_fname,
 
     for idx,index in enumerate(indices):
         if VERBOSE:
-            print index, values[idx]
+            print("{}, {}".format(index, values[idx]))
         d_out[d==index] = values[idx]
 
     niiSave(out_mapped_label_fname,d_out,a,header=h)
@@ -837,19 +837,19 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
             label_file = [s for s in label_files if ID in s]  # make sure our label file is in the list that was passed
             if len(metric_file) > 1:
                 print("")
-                print "OH SHIT, too many metric files. This should not happen!"
+                print("OH SHIT, too many metric files. This should not happen!")
             elif len(metric_file) == 0:
                 print("")
-                print "OH SHIT, no matching metric file for: " + ID
+                print("OH SHIT, no matching metric file for: " + ID)
                 print("This subject has not been processed")
                 DATA_EXISTS = False
 
             if len(label_file) > 1:
                 print("")
-                print "OH SHIT, too many label files. This should not happen!"
+                print("OH SHIT, too many label files. This should not happen!")
             elif len(label_file) == 0:
                 print("")
-                print "OH SHIT, no matching label file for: " + ID
+                print("OH SHIT, no matching label file for: " + ID)
                 print("This subject has not been processed")
                 DATA_EXISTS = False
         else: #files should already be ordered
@@ -866,11 +866,11 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                                                                                 # is in the list that was passed
                 if len(thresh_mask_fname) > 1:
                     print("")
-                    print "OH SHIT, too many threshold mask files. This should not happen!"
+                    print("OH SHIT, too many threshold mask files. This should not happen!")
 
                 elif len(thresh_mask_fname) == 0:
                     print("")
-                    print "OH SHIT, no matching threshold mask file for: " + ID
+                    print("OH SHIT, no matching threshold mask file for: " + ID)
                     DATA_EXISTS = False
             else:
                 thresh_mask_fname = thresh_mask_files[idx]
@@ -884,10 +884,10 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 ROI_mask_fname = [s for s in ROI_mask_files if
                                   ID in s]  # make sure our label file is in the list that was passed
                 if len(ROI_mask_fname) > 1:
-                    print "OH SHIT, too many threshold mask files. This should not happen!"
+                    print("OH SHIT, too many threshold mask files. This should not happen!")
 
                 elif len(ROI_mask_fname) == 0:
-                    print "OH SHIT, no matching ROI mask file for: " + ID
+                    print("OH SHIT, no matching ROI mask file for: " + ID)
                     DATA_EXISTS = False
             else:
                 ROI_mask_fname = ROI_mask_files[idx]
@@ -986,7 +986,7 @@ def extract_quantitative_metric(metric_files, label_files, IDs=None, label_df=No
                 print("##=====================================================================##")
                 print("Darn! There is something wrong with: " + ID)
                 print("##=====================================================================##")
-    print ""
+    print("")
     if metric is not 'data':
         return df_4d
     else:
@@ -1250,18 +1250,18 @@ def qcheck(user='stechr', delay=5 * 60):
     import subprocess
 
     print(time.strftime("%Y_%m_%d %H:%M:%S"))
-    print "=== start time ===",
+    print("=== start time ===")
     start = time.time()
     print(start)
     try:
         while len(subprocess.check_output(['qstat', '-u', user, '|', 'grep', user], shell=True)) > 0:
-            print ". ",
+            print(". ")
             # print(len(subprocess.check_output(['qstat', '-u', 'tachr'],shell=True)))
             time.sleep(delay)
     except:
         pass
 
-    print "=== end time ===",
+    print("=== end time ===")
     print(time.time())
     print(time.strftime("%Y_%m_%d %H:%M:%S"))
     duration = time.time() - start
@@ -1318,7 +1318,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
 
     if not (os.path.isfile(seg_idx_fname)) or CLOBBER:  # if the idx file exists, don't bother doing this again
         if not BY_SLICE:
-            data_list = [nb.load(fn).get_data()[..., np.newaxis] for fn in files]  # load all of the files
+            data_list = [nb.load(fn).get_fdata()[..., np.newaxis] for fn in files]  # load all of the files
             combined = np.concatenate(data_list, axis=-1)  # concatenate all of the input data
 
             combined = np.concatenate((np.zeros_like(data_list[0]), combined),
@@ -1334,8 +1334,8 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
                 axis=-1) == 0] = 0  # where there is no difference between volumes, this should be the mask, set to 0
 
             ##%% create soft segmentation to show strength of the dominant tract in each voxel
-            seg_part = np.zeros_like(hard_seg)
-            seg_temp = np.zeros_like(hard_seg)
+            seg_part = np.zeros_like(hard_seg,dtype=np.float32)
+            seg_temp = np.zeros_like(hard_seg,dtype=np.float32)
             seg_total = combined.sum(axis=-1)
 
             idx = 1
@@ -1355,7 +1355,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
                         hard_seg_indexed[hard_seg == idx] = seg_val
                         idx += 1
                 else:
-                    print ""
+                    print("")
                     print("====== YOU DID NOT ENTER THE CORRECT NUMBER OF VALUES FOR segmentation_index ======")
                     return
 
@@ -1383,6 +1383,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
             # seg_pct2[seg_pct2==-1]=0 #remove those -1s in the regions that used to be 0
 
             ##%%save
+            ## we are assuming that 
             aff = nb.load(files[0]).affine
             header = nb.load(files[0]).header
 
@@ -1390,12 +1391,12 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
             new_nii.set_data_dtype('uint32')
             new_nii.to_filename(seg_idx_fname)
 
-            new_nii = nb.Nifti1Image(seg_total.astype('uint32'), aff, header)
-            new_nii.set_data_dtype('uint32')
+            new_nii = nb.Nifti1Image(seg_total.astype('float32'), aff, header)
+            new_nii.set_data_dtype('float32')
             new_nii.to_filename(seg_tot_fname)
 
-            new_nii = nb.Nifti1Image(seg_part.astype('uint32'), aff, header)
-            new_nii.set_data_dtype('uint32')
+            new_nii = nb.Nifti1Image(seg_part.astype('float32'), aff, header)
+            new_nii.set_data_dtype('float32')
             new_nii.to_filename(seg_prt_fname)
 
             """
@@ -1427,7 +1428,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
             hard_seg_full = np.zeros(data_shape)
             seg_part_full = np.zeros(data_shape)
             seg_total_full = np.zeros(data_shape)
-            seg_pct_full = np.zeros_like(hard_seg_full)
+            seg_pct_full = np.zeros_like(hard_seg_full,dtype=np.float32)
 
             print("Data shape (single image): " + str(data_shape))
             print("Slice: "),
@@ -1436,7 +1437,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
             for slice_idx in np.arange(0, data_shape[-1]):
                 print(slice_idx),
 
-                data_list = [nb.load(fn).get_data()[:, :, slice_idx, np.newaxis] for fn in
+                data_list = [nb.load(fn).get_fdata()[:, :, slice_idx, np.newaxis] for fn in
                              files]  # load all of the files
                 combined = np.concatenate(data_list, axis=-1)  # concatenate all of the input data
                 combined = np.concatenate((np.zeros_like(data_list[0]), combined),
@@ -1455,8 +1456,8 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
                     seg_total_full[:, :, slice_idx] = combined.sum(axis=-1)
 
                     # declare empty matrices for this loop for partial and temp for calculating the partial (num of winning seg) file
-                    seg_part = np.zeros_like(hard_seg)
-                    seg_temp = np.zeros_like(hard_seg)
+                    seg_part = np.zeros_like(hard_seg,dtype=np.float32)
+                    seg_temp = np.zeros_like(hard_seg,dtype=np.float32)
 
                     idx = 1
                     for seg in files:
@@ -1477,7 +1478,7 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
                                 hard_seg_indexed[hard_seg == idx] = seg_val
                                 idx += 1
                         else:
-                            print ""
+                            print("")
                             print("====== YOU DID NOT ENTER THE CORRECT NUMBER OF VALUES FOR segmentation_index ======")
                             return None
 
@@ -1497,12 +1498,12 @@ def tract_seg3(files, out_basename='', segmentation_index=None, CLOBBER=False, B
             new_nii.set_data_dtype('uint32')
             new_nii.to_filename(seg_idx_fname)
 
-            new_nii = nb.Nifti1Image(seg_total_full.astype('uint32'), aff, header)
-            new_nii.set_data_dtype('uint32')
+            new_nii = nb.Nifti1Image(seg_total_full.astype('float32'), aff, header)
+            new_nii.set_data_dtype('float32')
             new_nii.to_filename(seg_tot_fname)
 
-            new_nii = nb.Nifti1Image(seg_part_full.astype('uint32'), aff, header)
-            new_nii.set_data_dtype('uint32')
+            new_nii = nb.Nifti1Image(seg_part_full.astype('float32'), aff, header)
+            new_nii.set_data_dtype('float32')
             new_nii.to_filename(seg_prt_fname)
 
             """
@@ -1601,15 +1602,15 @@ def dki_dke_prep_data_bvals_bvecs(data_fname, bvals_file, bvecs_file, out_dir=No
                                      os.path.basename(data_fname).split(".nii")[0] + "_bval" + str(bval) + ".nii.gz")
             vol_list = str([i for i, v in enumerate(bvals) if v == bval]).strip('[]').replace(" ", "")
             cmd_input = ['fslselectvols', '-i', data_fname, '-o', out_fname, '--vols=' + vol_list]
-            print ""
-            print " ".join(cmd_input)
+            print("")
+            print(" ".join(cmd_input))
             cmd_txt.append(cmd_input)
             if not os.path.isfile(out_fname) or CLOBBER:
                 if RUN_LOCALLY:
                     subprocess.call(cmd_input)
             if bval == 0:  # we mean this value if we are working with b=0 file
                 cmd_input = ['fslmaths', out_fname, '-Tmean', out_fname]
-                print " ".join(cmd_input)
+                print(" ".join(cmd_input))
                 cmd_txt.append(cmd_input)
                 if RUN_LOCALLY:
                     subprocess.call(cmd_input)  # no CLOBBER check here, since we actually want to overwrite this file
@@ -1629,8 +1630,8 @@ def dki_dke_prep_data_bvals_bvecs(data_fname, bvals_file, bvecs_file, out_dir=No
     cmd_input = ['fslmerge', '-t', out_fname]
     for fname in fname_list:
         cmd_input = cmd_input + [fname]
-    print ""
-    print " ".join(cmd_input)
+    print("")
+    print(" ".join(cmd_input))
     cmd_txt.append(cmd_input)
     if not os.path.isfile(out_fname) or CLOBBER:
         if RUN_LOCALLY:

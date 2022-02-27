@@ -535,7 +535,7 @@ def combine_connectome_matrices_sparse_hdf5(connectome_files_list, connectome_fi
                 for row in lookup_row:
                     #for col in lookup_col:
                     dset[row, lookup_col] = np.ndarray.flatten(submat[row,:])
-                    print idx
+                    print(idx)
                     idx+=1
 
                 dset[lookup_row,lookup_col] = submat
